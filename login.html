@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paramount Portal - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paramount-blue: #002f6c;
+            --accent-blue: #49b1ea;
+            --light-blue: #ebf3fc;
+            --dark-gray: #b2b2b2;
+            --light-gray: #f9f9f9;
+            --white: #ffffff;
+            --bg-color: var(--light-gray);
+            --card-bg: var(--white);
+            --text-color: var(--paramount-blue);
+            --border-color: #e0e0e0;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1e293b;
+            --card-bg: #0f172a;
+            --text-color: #f8fafc;
+            --border-color: #334155;
+            --light-blue: #1e293b;
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .theme-toggle-container { position: absolute; top: 20px; right: 20px; }
+
+        .theme-btn {
+            background: var(--card-bg);
+            border: 1.5px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 2, 108, 0.05);
+            text-align: center;
+        }
+
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 0.5rem;
+            border-radius: 8px;
+        }
+
+        .brand-logo {
+            max-width: 100%;
+            height: auto;
+            max-height: 85px; 
+            object-fit: contain;
+        }
+
+        [data-theme="dark"] .logo-container { background: rgba(255, 255, 255, 0.9); }
+
+        h2 {
+            font-size: 1.2rem;
+            color: var(--text-color);
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        .input-group { text-align: left; margin-bottom: 1.25rem; }
+
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border: 1.5px solid var(--border-color);
+            background: transparent;
+            color: var(--text-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .btn-login {
+            width: 100%;
+            background: var(--paramount-blue);
+            color: white;
+            border: none;
+            padding: 0.9rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .btn-login:hover { background: var(--accent-blue); }
+        .error-message { color: #d9383a; font-size: 0.8rem; margin-top: 1rem; display: none; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="theme-toggle-container">
+        <button class="theme-btn" id="themeToggle">
+            <span id="themeIcon">🌙</span> <span id="themeText">Dark Mode</span>
+        </button>
+    </div>
+
+    <div class="login-card">
+        <div class="logo-container">
+            <img src="docs/images/plgic_logowithname.bmp" alt="Paramount Life & General Insurance" class="brand-logo">
+        </div>
+        
+        <h2>Secure Single Sign-On</h2>
+        
+        <form id="loginForm">
+            <div class="input-group">
+                <label for="username">USERNAME</label>
+                <input type="text" id="username" placeholder="Enter username" required autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label for="password">PASSWORD</label>
+                <input type="password" id="password" placeholder="Enter password" required>
+            </div>
+            
+            <button type="submit" class="btn-login">Sign In</button>
+            <div id="errorMsg" class="error-message">Invalid credentials. Please try again.</div>
+        </form>
+    </div>
+
+    <script>
+        // Set up initial system users in database if none exist yet
+        if (!localStorage.getItem('portal_users')) {
+            const defaultUsers = [
+                { username: "admin", password: "admin123", role: "admin" },
+                { username: "ba", password: "ba123", role: "ba" }
+            ];
+            localStorage.setItem('portal_users', JSON.stringify(defaultUsers));
+        }
+
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const themeText = document.getElementById('themeText');
+
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        updateToggleUI(currentTheme);
+
+        themeToggle.addEventListener('click', () => {
+            let theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            updateToggleUI(theme);
+        });
+
+        function updateToggleUI(theme) {
+            if (theme === 'dark') {
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Light Mode';
+            } else {
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Dark Mode';
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const userVal = document.getElementById('username').value.trim().toLowerCase();
+            const passVal = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMsg');
+
+            // Dynamic User validation check
+            const userList = JSON.parse(localStorage.getItem('portal_users'));
+            const matchedUser = userList.find(u => u.username === userVal && u.password === passVal);
+
+            if (matchedUser) {
+                // Pass role AND username to save context
+                window.location.href = `dashboard.html?role=${matchedUser.role}&user=${matchedUser.username}`;
+            } else {
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

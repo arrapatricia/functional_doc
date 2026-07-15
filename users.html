@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paramount QA Portal - User Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paramount-blue: #002f6c;
+            --accent-blue: #49b1ea;
+            --light-blue: #ebf3fc;
+            --dark-gray: #b2b2b2;
+            --light-gray: #f9f9f9;
+            --white: #ffffff;
+            --bg-color: var(--light-gray);
+            --card-bg: var(--white);
+            --text-color: var(--paramount-blue);
+            --border-color: #e0e0e0;
+            --danger-red: #d9383a;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1e293b;
+            --card-bg: #0f172a;
+            --text-color: #f8fafc;
+            --border-color: #334155;
+            --light-blue: #1e293b;
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--light-blue);
+        }
+
+        .user-form-card {
+            background: var(--card-bg);
+            border: 1.5px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1.5px solid var(--border-color);
+            background: transparent;
+            color: var(--text-color);
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            background: var(--paramount-blue);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn:hover { background: var(--accent-blue); }
+        .btn-danger { background: var(--danger-red); }
+        .btn-danger:hover { background: #b91c1c; }
+
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border: 1.5px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .user-table th, .user-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .user-table th {
+            background: var(--light-blue);
+            font-weight: 600;
+        }
+
+        .role-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .role-admin { background: #e2fcdb; color: #278510; }
+        .role-ba { background: #e0f2fe; color: #0369a1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>User Management Portal</h2>
+            <button class="btn" onclick="window.history.back()">Back to Dashboard</button>
+        </div>
+
+        <div class="user-form-card">
+            <h3>Add New Portal User</h3>
+            <form id="userForm" style="margin-top: 1rem;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>USERNAME</label>
+                        <input type="text" id="newUsername" required placeholder="e.g., msmith">
+                    </div>
+                    <div class="form-group">
+                        <label>PASSWORD</label>
+                        <input type="password" id="newPassword" required placeholder="••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label>ROLE</label>
+                        <select id="newRole">
+                            <option value="admin">Administrator</option>
+                            <option value="ba">Business Analyst (BA)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn">Create User</button>
+                </div>
+            </form>
+        </div>
+
+        <table class="user-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userListBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // Core dynamic user repository logic
+        let users = JSON.parse(localStorage.getItem('portal_users')) || [
+            { username: "admin", password: "admin123", role: "admin" },
+            { username: "ba", password: "ba123", role: "ba" }
+        ];
+
+        const form = document.getElementById('userForm');
+        const listBody = document.getElementById('userListBody');
+
+        function renderUsers() {
+            listBody.innerHTML = '';
+            users.forEach((user, index) => {
+                const badgeClass = user.role === 'admin' ? 'role-admin' : 'role-ba';
+                const row = `
+                    <tr>
+                        <td><strong>${user.username}</strong></td>
+                        <td><span class="role-badge ${badgeClass}">${user.role}</span></td>
+                        <td>
+                            ${user.username !== 'admin' ? `<button class="btn btn-danger" onclick="deleteUser(${index})" style="padding: 4px 8px; font-size: 0.75rem;">Delete</button>` : '<span style="color:var(--dark-gray); font-size:0.8rem;">System Protection</span>'}
+                        </td>
+                    </tr>
+                `;
+                listBody.insertAdjacentHTML('beforeend', row);
+            });
+            localStorage.setItem('portal_users', JSON.stringify(users));
+        }
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('newUsername').value.trim().toLowerCase();
+            const password = document.getElementById('newPassword').value;
+            const role = document.getElementById('newRole').value;
+
+            if (users.find(u => u.username === username)) {
+                alert("Username already exists!");
+                return;
+            }
+
+            users.push({ username, password, role });
+            form.reset();
+            renderUsers();
+        });
+
+        function deleteUser(index) {
+            if (confirm("Are you sure you want to delete this user?")) {
+                users.splice(index, 1);
+                renderUsers();
+            }
+        }
+
+        renderUsers();
+    </script>
+</body>
+</html>
