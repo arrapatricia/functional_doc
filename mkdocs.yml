@@ -1,0 +1,29 @@
+site_name: Paramount QA Functional Docs
+copyright: "&copy; 2026 Paramount Life & General Insurance Corporation. All rights reserved."
+
+theme:
+  name: material
+  font:
+    text: Montserrat
+    code: Roboto Mono # Keeps your code blocks looking like code
+  palette:
+    # Light mode setup
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode setup
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/custom.css
+
+extra_javascript:
+  - javascripts/app.js
+
+nav:
+  - Home: index.md
+  - Login Requirements: login_specs.md

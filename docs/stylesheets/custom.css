@@ -1,0 +1,26 @@
+/* Universal Brand Colors (Forced Override for Light & Dark Mode) */
+:root, [data-md-color-scheme="default"], [data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #002f6c !important; /* Paramount Blue: Top header and primary buttons */
+  --md-accent-fg-color: #49b1ea !important;  /* Accent Blue: Active tabs and hover states */
+  --md-typeset-a-color: #49b1ea !important;  /* Accent Blue: Text links */
+}
+
+/* Light Mode Specific Colors */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #f9f9f9 !important; /* Light Gray: Main background */
+  --md-default-fg-color--light: #b2b2b2 !important; /* Dark Gray: Muted/secondary text */
+  --md-code-bg-color: #ebf3fc !important; /* Light Blue: Background for code blocks and notes */
+}
+
+.md-copyright {
+  font-size: 0 !important;
+}
+.md-copyright a {
+  display: none !important;
+}
+
+/* Ensure the Paramount copyright remains visible */
+.md-copyright__highlight {
+  font-size: 0.65rem !important;
+  display: block !important;
+}
