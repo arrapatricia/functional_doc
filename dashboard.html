@@ -14,6 +14,9 @@
     <!-- Supabase Javascript Library CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+    <!-- AWS SDK for S3 integration -->
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1400.0.min.js"></script>
+
     <!-- Export Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -367,7 +370,6 @@
 
     <div class="header">
         <div class="brand-wrapper" onclick="showDashboardView()">
-            <!-- Fixed default loading path pointing inside your docs/images/ schema -->
             <img id="mainPortalLogo" class="header-logo-img" src="docs/images/PLGIC_Icon Only_blue.png" alt="Portal Logo">
             <h1>Paramount Docs <span id="headerSubtitle" style="color: var(--dark-gray); font-weight: 400; font-size: 1rem;">/ Projects Directory</span></h1>
         </div>
@@ -539,12 +541,21 @@
         const SUB_KEY = "sb_publishable_bWEgNSSxNTjrD9oXE5r4Bw_5tkDn493"; 
         const supabaseClient = supabase.createClient(SUB_URL, SUB_KEY);
 
+        // --- AWS S3 SECURE CONFIGURATION ---
+        AWS.config.update({
+            accessKeyId: 'AKIA2Z557AMMFY7JTUBP',
+            secretAccessKey: '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',
+            region: 'ap-southeast-2'
+        });
+        const s3Instance = new AWS.S3();
+        const AWS_BUCKET_NAME = 'paramount-qa-evidence-vault';
+
         let projects = [];
         let currentActiveProjectId = null;
         let currentActivePageIndex = 0; 
         let isEditingMode = false;
         let quillEditor = null; 
-        let temporaryBase64MediaAttachments = [];
+        let temporaryAWSMediaUrls = [];
 
         let permissions = {
             canCreateProjects: false,
@@ -581,7 +592,6 @@
             userBadgeContainer.style.color = '#0369a1';
         }
 
-        // Updated asset checking logic to read correct naming configurations from docs/images
         if (savedTheme === 'dark') {
             mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_white.png';
         } else {
@@ -670,29 +680,48 @@
 
         function handleDragOver(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.add('hover'); }
         function handleDragLeave(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.remove('hover'); }
-        function handleFileDrop(e) {
+        
+        // --- STREAMING DRAGGED FILES DIRECTLY TO AWS S3 ---
+        async function handleFileDrop(e) {
             e.preventDefault();
-            document.getElementById('mediaDropzone').classList.remove('hover');
+            const dropzone = document.getElementById('mediaDropzone');
+            dropzone.classList.remove('hover');
+            dropzone.textContent = "⏳ Uploading to AWS S3 bucket...";
+
             const files = e.dataTransfer.files;
             for (let file of files) {
                 if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(evt) {
-                        temporaryBase64MediaAttachments.push({ type: file.type, data: evt.target.result });
-                        renderMediaPreviews();
+                    const uniqueFileName = `evidence_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+                    
+                    const uploadParams = {
+                        Bucket: AWS_BUCKET_NAME,
+                        Key: uniqueFileName,
+                        Body: file,
+                        ContentType: file.type,
+                        ACL: 'public-read' // Ensures file is readable by the web client
                     };
-                    reader.readAsDataURL(file);
+
+                    try {
+                        const uploadResult = await s3Instance.upload(uploadParams).promise();
+                        // Save the direct public URL link instead of massive Base64
+                        temporaryAWSMediaUrls.push({ type: file.type, url: uploadResult.Location });
+                        renderMediaPreviews();
+                    } catch (err) {
+                        console.error("AWS Upload Failure:", err);
+                        alert("Failed to stream attachment directly to AWS S3. Please verify your CORS rules.");
+                    }
                 }
             }
+            dropzone.textContent = "📂 Drag & Drop Execution Screenshots or Video Recordings here";
         }
 
         function renderMediaPreviews() {
             const container = document.getElementById('mediaPreviewContainer');
             container.innerHTML = '';
-            temporaryBase64MediaAttachments.forEach(file => {
+            temporaryAWSMediaUrls.forEach(file => {
                 const element = file.type.startsWith('image/') ? 
-                    `<div class="preview-media-wrapper"><img src="${file.data}"></div>` : 
-                    `<div class="preview-media-wrapper"><video src="${file.data}" controls></video></div>`;
+                    `<div class="preview-media-wrapper"><img src="${file.url}"></div>` : 
+                    `<div class="preview-media-wrapper"><video src="${file.url}" controls></video></div>`;
                 container.insertAdjacentHTML('beforeend', element);
             });
         }
@@ -843,9 +872,10 @@
                     let mediaBlockHtml = '';
                     if (item.attachments && item.attachments.length > 0) {
                         item.attachments.forEach(file => {
+                            // Render using clean public AWS S3 URLs instead of memory-heavy strings
                             mediaBlockHtml += file.type.startsWith('image/') ? 
-                                `<div class="preview-media-wrapper"><img src="${file.data}"></div>` : 
-                                `<div class="preview-media-wrapper"><video src="${file.data}" controls></video></div>`;
+                                `<div class="preview-media-wrapper"><a href="${file.url}" target="_blank"><img src="${file.url}"></a></div>` : 
+                                `<div class="preview-media-wrapper"><video src="${file.url}" controls></video></div>`;
                         });
                     }
 
@@ -901,7 +931,7 @@
         }
 
         function openTestCaseModal() { 
-            temporaryBase64MediaAttachments = [];
+            temporaryAWSMediaUrls = [];
             document.getElementById('editTestCaseIndex').value = "";
             document.getElementById('testModalTitle').textContent = "Add New Test Plan Definition";
             document.getElementById('saveTestCaseBtn').textContent = "Append Test Plan";
@@ -924,7 +954,7 @@
             document.getElementById('testACInput').value = item.acceptanceCriteria || '';
             document.getElementById('testStepsInput').value = item.steps || '';
             
-            temporaryBase64MediaAttachments = item.attachments || [];
+            temporaryAWSMediaUrls = item.attachments || [];
             renderMediaPreviews();
         }
 
@@ -940,7 +970,7 @@
                 scenario: scenarioText,
                 acceptanceCriteria: document.getElementById('testACInput').value.trim(),
                 steps: document.getElementById('testStepsInput').value.trim(),
-                attachments: temporaryBase64MediaAttachments
+                attachments: temporaryAWSMediaUrls
             };
 
             if (!project.testSuite) project.testSuite = [];
