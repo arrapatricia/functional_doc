@@ -75,25 +75,11 @@
             cursor: pointer;
         }
 
-        .header-logo {
-            width: 40px; height: 40px;
-            border: 2px solid var(--paramount-blue);
-            border-radius: 50%;
-            position: relative;
-            display: flex; justify-content: center; align-items: center;
+        .header-logo-img {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
         }
-
-        [data-theme="dark"] .header-logo { border-color: var(--accent-blue); }
-
-        .header-logo .mountain-mini {
-            width: 0; height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-bottom: 16px solid var(--paramount-blue);
-            position: absolute; bottom: 8px;
-        }
-
-        [data-theme="dark"] .header-logo .mountain-mini { border-bottom-color: var(--accent-blue); }
 
         .header h1 { font-size: 1.25rem; font-weight: 700; }
 
@@ -381,7 +367,8 @@
 
     <div class="header">
         <div class="brand-wrapper" onclick="showDashboardView()">
-            <div class="header-logo"><div class="mountain-mini"></div></div>
+            <!-- Fixed default loading path pointing inside your docs/images/ schema -->
+            <img id="mainPortalLogo" class="header-logo-img" src="docs/images/PLGIC_Icon Only_blue.png" alt="Portal Logo">
             <h1>Paramount Docs <span id="headerSubtitle" style="color: var(--dark-gray); font-weight: 400; font-size: 1rem;">/ Projects Directory</span></h1>
         </div>
         <div class="user-info">
@@ -432,7 +419,6 @@
             </div>
 
             <div class="sidebar-audit-section">
-                <!-- DYNAMIC TEXT CHANGE ACCORDING TO VIEW INDEX ROUTE -->
                 <div class="analytics-title" id="auditTitleLabel">Audit Trail & Versions</div>
                 <div class="audit-log-list" id="sidebarAuditLogList"></div>
             </div>
@@ -529,8 +515,6 @@
                 <input type="hidden" id="editTestCaseIndex">
                 <div class="form-group"><label>TEST SCENARIO</label><input type="text" id="testScenarioInput" required placeholder="e.g., Validate user session expiration safety timeout"></div>
                 <div class="form-group"><label>ACCEPTANCE CRITERIA</label><textarea id="testACInput" rows="2" required placeholder="GIVEN user remains idle for 15 minutes..."></textarea></div>
-                
-                <!-- EXECUTION STEPS ARE NOW OPTIONAL (NOT REQUIRED) -->
                 <div class="form-group"><label>TEST CASES STEPS (OPTIONAL)</label><textarea id="testStepsInput" rows="3" placeholder="1. Log into core account dashboard&#10;2. Sever internet request loops..."></textarea></div>
                 
                 <div class="form-group">
@@ -562,7 +546,6 @@
         let quillEditor = null; 
         let temporaryBase64MediaAttachments = [];
 
-        // Dynamic Role-Based Access Control State
         let permissions = {
             canCreateProjects: false,
             canDeleteProjects: false,
@@ -584,6 +567,7 @@
         const userDisplayNameLabel = document.getElementById('userDisplayNameLabel');
         const userBadgeContainer = document.querySelector('.user-badge-container');
         const auditTitleLabel = document.getElementById('auditTitleLabel');
+        const mainPortalLogo = document.getElementById('mainPortalLogo');
 
         const firstName = activeUser.split(' ')[0];
         userDisplayNameLabel.textContent = firstName;
@@ -595,6 +579,13 @@
             roleLabel.textContent = `${role.toUpperCase()} Access`;
             userBadgeContainer.style.background = '#e0f2fe';
             userBadgeContainer.style.color = '#0369a1';
+        }
+
+        // Updated asset checking logic to read correct naming configurations from docs/images
+        if (savedTheme === 'dark') {
+            mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_white.png';
+        } else {
+            mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_blue.png';
         }
 
         function getCurrentFormattedDate() { return new Date().toISOString().split('T')[0]; }
@@ -638,7 +629,7 @@
                         pages: p.pages || [],
                         notesHistory: p.notes_history || [],
                         testSuite: p.test_suite || [],
-                        testHistory: p.test_history || [] // Separate tracking array column for QA executions
+                        testHistory: p.test_history || []
                     }));
                     renderDashboard();
                 }
@@ -678,7 +669,6 @@
         }
 
         function handleDragOver(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.add('hover'); }
-        function handleDragOver(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.add('hover'); }
         function handleDragLeave(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.remove('hover'); }
         function handleFileDrop(e) {
             e.preventDefault();
@@ -705,33 +695,6 @@
                     `<div class="preview-media-wrapper"><video src="${file.data}" controls></video></div>`;
                 container.insertAdjacentHTML('beforeend', element);
             });
-        }
-
-        function openProjectWorkspace(projectId) {
-            currentActiveProjectId = projectId;
-            currentActivePageIndex = 0;
-            isEditingMode = false;
-
-            const project = projects.find(p => p.id === projectId);
-            headerSubtitle.innerHTML = `/ ${project.name}`;
-
-            dashboardView.classList.remove('active');
-            workspaceView.classList.add('active');
-
-            document.getElementById('addPageBtn').style.display = permissions.canManagePages ? 'block' : 'none';
-            document.getElementById('importPageBtn').style.display = permissions.canManagePages ? 'block' : 'none';
-            document.getElementById('addTagBtn').style.display = permissions.canManageTags ? 'block' : 'none';
-
-            renderWorkspaceSidebar();
-            renderWorkspaceContent();
-            calculateWordingTags();
-        }
-
-        function showDashboardView() {
-            headerSubtitle.innerHTML = `/ Projects Directory`;
-            workspaceView.classList.remove('active');
-            dashboardView.classList.add('active');
-            fetchProjectsFromDB();
         }
 
         function renderWorkspaceSidebar() {
@@ -854,7 +817,6 @@
             }
         }
 
-        // --- RENDER DEDICATED AUDIT FEED FOR THE QA SUITE TRACKS ---
         function renderTestHistoryAuditLogs(project) {
             let logsHtml = '';
             if (project.testHistory && project.testHistory.length > 0) {
@@ -872,7 +834,6 @@
             sidebarAuditLogList.innerHTML = logsHtml;
         }
 
-        // --- RENDERING METHOD FOR TEST SUITE PLANNER MATRIX ---
         function renderTestManagementSuite(project) {
             const hasModificationAccess = (role === 'admin' || role === 'qa');
 
@@ -969,7 +930,6 @@
 
         function closeTestCaseModal() { document.getElementById('testCaseModal').style.display = 'none'; }
 
-        // --- COMMIT NEW OR EDITED TEST CASE WITH DEDICATED AUDIT TRAIL LOGGING ---
         document.getElementById('testCaseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const project = projects.find(p => p.id === currentActiveProjectId);
@@ -989,17 +949,14 @@
             let logActionText = "";
 
             if (editIndexStr !== "") {
-                // Editing Mode
                 const idx = parseInt(editIndexStr);
                 project.testSuite[idx] = payload;
                 logActionText = `Updated Scenario: "${scenarioText.substring(0, 25)}..."`;
             } else {
-                // Creation Mode
                 project.testSuite.push(payload);
                 logActionText = `Created Scenario: "${scenarioText.substring(0, 25)}..."`;
             }
 
-            // Append explicitly to the separate test audit trail
             project.testHistory.push({
                 author: getAuthorName(),
                 timestamp: getCurrentFormattedTimestamp(),
@@ -1018,12 +975,9 @@
                 if (error) throw error;
                 closeTestCaseModal();
                 renderWorkspaceContent();
-            } catch (err) {
-                console.error("Failed to sync test entry modifications:", err);
-            }
+            } catch (err) { console.error(err); }
         });
 
-        // --- REMOVE TEST PLAN SPECIFICATIONS WITH DEDICATED AUDIT TRAIL LOGGING ---
         async function removeTestCaseItem(index) {
             if (!confirm("Are you sure you want to completely delete this test scenario definition from this project track?")) return;
             const project = projects.find(p => p.id === currentActiveProjectId);
@@ -1242,6 +1196,12 @@
         document.getElementById('dashboardThemeToggle').addEventListener('click', () => {
             let theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('theme', theme);
+            
+            if (theme === 'dark') {
+                mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_white.png';
+            } else {
+                mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_blue.png';
+            }
         });
 
         async function startup() {
