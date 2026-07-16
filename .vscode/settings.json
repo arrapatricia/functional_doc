@@ -1,0 +1,28 @@
+{
+  "python.defaultInterpreterPath": "c:\\Users\\arra.delmundo\\Desktop\\automation_test\\functional_doc\\.locust_env\\Scripts\\python.exe",
+  "github.copilot.chat.mcpServers": {
+    "mcp-locust": {
+      "command": "c:\\Users\\arra.delmundo\\Desktop\\automation_test\\functional_doc\\.locust_env\\Scripts\\python.exe",
+      "args": [
+        "-u",
+        "c:\\Users\\arra.delmundo\\.vscode\\extensions\\locust.locust-vscode-extension-0.1.70\\mcp\\server.py"
+      ],
+      "cwd": "${workspaceFolder}"
+    }
+  },
+  "github.copilot.experimental.mcpServers": {
+    "mcp-locust": {
+      "command": "c:\\Users\\arra.delmundo\\Desktop\\automation_test\\functional_doc\\.locust_env\\Scripts\\python.exe",
+      "args": [
+        "-u",
+        "c:\\Users\\arra.delmundo\\.vscode\\extensions\\locust.locust-vscode-extension-0.1.70\\mcp\\server.py"
+      ],
+      "cwd": "${workspaceFolder}"
+    }
+  },
+  "deno.enable": true,
+  "deno.enablePaths": [
+    "./supabase/functions"
+  ],
+  "deno.lint": true
+}
