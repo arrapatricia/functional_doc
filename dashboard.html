@@ -14,9 +14,6 @@
     <!-- Supabase Javascript Library CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- AWS SDK for S3 integration -->
-    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1400.0.min.js"></script>
-
     <!-- Export Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -230,7 +227,7 @@
             color: var(--accent-blue);
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 0.7rem;
+            font-size: 0.7;
             font-weight: 600;
         }
 
@@ -541,14 +538,8 @@
         const SUB_KEY = "sb_publishable_bWEgNSSxNTjrD9oXE5r4Bw_5tkDn493"; 
         const supabaseClient = supabase.createClient(SUB_URL, SUB_KEY);
 
-        // --- AWS S3 SECURE CONFIGURATION ---
-        AWS.config.update({
-            accessKeyId: 'AKIA2Z557AMMFY7JTUBP',
-            secretAccessKey: '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',
-            region: 'ap-southeast-2'
-        });
-        const s3Instance = new AWS.S3();
-        const AWS_BUCKET_NAME = 'paramount-qa-evidence-vault';
+        // --- EDGE FUNCTION URL FOR SIGNED UPLOADS (KEYLESS SECURITY) ---
+        const SECURE_UPLOAD_ENDPOINT = "https://ptqnasxskagxnkabtxqq.functions.supabase.co/get-presigned-url";
 
         let projects = [];
         let currentActiveProjectId = null;
@@ -681,34 +672,46 @@
         function handleDragOver(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.add('hover'); }
         function handleDragLeave(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.remove('hover'); }
         
-        // --- STREAMING DRAGGED FILES DIRECTLY TO AWS S3 ---
+        // --- STREAMING DRAGGED FILES DIRECTLY TO AWS S3 VIA SECURE SUPABASE EDGE FUNCTION ---
         async function handleFileDrop(e) {
             e.preventDefault();
             const dropzone = document.getElementById('mediaDropzone');
             dropzone.classList.remove('hover');
-            dropzone.textContent = "⏳ Uploading to AWS S3 bucket...";
+            dropzone.textContent = "⏳ Requesting secure S3 channel...";
 
             const files = e.dataTransfer.files;
             for (let file of files) {
                 if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
                     const uniqueFileName = `evidence_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
                     
-                    const uploadParams = {
-                        Bucket: AWS_BUCKET_NAME,
-                        Key: uniqueFileName,
-                        Body: file,
-                        ContentType: file.type,
-                        ACL: 'public-read' // Ensures file is readable by the web client
-                    };
-
                     try {
-                        const uploadResult = await s3Instance.upload(uploadParams).promise();
+                        // 1. Ask our Edge function to sign an upload URL
+                        const signResponse = await fetch(SECURE_UPLOAD_ENDPOINT, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fileName: uniqueFileName, fileType: file.type })
+                        });
+
+                        if (!signResponse.ok) throw new Error("Failed to sign upload handshake.");
+                        const { presignedUrl, publicUrl } = await signResponse.json();
+
+                        dropzone.textContent = "⏳ Streaming file to AWS S3 vault...";
+
+                        // 2. Put the file binary directly into your bucket (zero credentials exposed!)
+                        const uploadResponse = await fetch(presignedUrl, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': file.type },
+                            body: file
+                        });
+
+                        if (!uploadResponse.ok) throw new Error("Failed to upload payload directly to S3.");
+
                         // Save the direct public URL link instead of massive Base64
-                        temporaryAWSMediaUrls.push({ type: file.type, url: uploadResult.Location });
+                        temporaryAWSMediaUrls.push({ type: file.type, url: publicUrl });
                         renderMediaPreviews();
                     } catch (err) {
-                        console.error("AWS Upload Failure:", err);
-                        alert("Failed to stream attachment directly to AWS S3. Please verify your CORS rules.");
+                        console.error("AWS Secure Upload Failure:", err);
+                        alert("Secure upload handshake failed. Please check your console logs.");
                     }
                 }
             }
@@ -872,7 +875,6 @@
                     let mediaBlockHtml = '';
                     if (item.attachments && item.attachments.length > 0) {
                         item.attachments.forEach(file => {
-                            // Render using clean public AWS S3 URLs instead of memory-heavy strings
                             mediaBlockHtml += file.type.startsWith('image/') ? 
                                 `<div class="preview-media-wrapper"><a href="${file.url}" target="_blank"><img src="${file.url}"></a></div>` : 
                                 `<div class="preview-media-wrapper"><video src="${file.url}" controls></video></div>`;
@@ -1220,6 +1222,95 @@
             const opt = { margin:1, filename:`${project.name}_${page.title}.pdf`, image:{ type:'jpeg', quality:0.98 }, html2canvas:{ scale:2 }, jsPDF:{ unit:'in', format:'letter', orientation:'portrait' } };
             html2pdf().set(opt).from(element).save();
         }
+
+        // --- CORE NAVIGATION & ACTIONS INTERFACE CONTROLLER ---
+        function openProjectWorkspace(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+            currentActiveProjectId = projectId;
+            currentActivePageIndex = 0;
+            
+            headerSubtitle.textContent = `/ ${project.name}`;
+            
+            dashboardView.classList.remove('active');
+            workspaceView.classList.add('active');
+            
+            // Adjust sidebar layout based on permissions
+            document.getElementById('addPageBtn').style.display = permissions.canManagePages ? 'block' : 'none';
+            document.getElementById('importPageBtn').style.display = permissions.canManagePages ? 'block' : 'none';
+            document.getElementById('addTagBtn').style.display = permissions.canManageTags ? 'block' : 'none';
+
+            renderWorkspaceSidebar();
+            renderWorkspaceContent();
+            calculateWordingTags();
+        }
+
+        function showDashboardView() {
+            currentActiveProjectId = null;
+            headerSubtitle.textContent = "/ Projects Directory";
+            workspaceView.classList.remove('active');
+            dashboardView.classList.add('active');
+        }
+
+        async function deleteProject(projectId) {
+            if (!confirm("Are you sure you want to permanently delete this project and all its sub-pages? This action is irreversible.")) return;
+            try {
+                const { error } = await supabaseClient.from('projects').delete().eq('id', projectId);
+                if (error) throw error;
+                await fetchProjectsFromDB();
+            } catch (err) {
+                console.error("Error deleting project:", err);
+            }
+        }
+
+        // --- SUBMIT NEW PROJECT TO DATABASE ---
+        document.getElementById('projectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('projName').value.trim();
+            const desc = document.getElementById('projDesc').value.trim();
+            const objectives = document.getElementById('projObjectives').value.trim();
+            const requestor = document.getElementById('projRequestor').value.trim();
+            const status = document.getElementById('projStatus').value;
+            const dev = document.getElementById('projDev').value.trim();
+            const qa = document.getElementById('projQA').value.trim();
+            const ba = document.getElementById('projBA').value.trim();
+
+            const newProject = {
+                name: name,
+                desc: desc,
+                objectives: objectives,
+                requestor: requestor,
+                status: status,
+                dev_assignee: dev,
+                qa_assignee: qa,
+                ba_assignee: ba,
+                date_created: getCurrentFormattedDate(),
+                created_by: getAuthorName(),
+                custom_tags: ['[sso]', '[database]', '[payment]', '[maintenance]', '[reports]'],
+                pages: [
+                    {
+                        title: "Overview",
+                        content: `<h1>${name} Overview</h1><p>Welcome to the documentation workspace for ${name}. Use the navigation panel on the left to track wording tags, review audit logs, and manage QA testing scenarios.</p>`,
+                        history: [{ version: "v1.0", author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), action: "Initial project setup" }]
+                    }
+                ],
+                notes_history: [],
+                test_suite: [],
+                test_history: []
+            };
+
+            try {
+                const { error } = await supabaseClient.from('projects').insert([newProject]);
+                if (error) throw error;
+                
+                document.getElementById('projectModal').style.display = 'none';
+                document.getElementById('projectForm').reset();
+                await fetchProjectsFromDB();
+            } catch (err) {
+                console.error("Failed to insert new project:", err);
+                alert("Failed to save project to Supabase. Check database permissions.");
+            }
+        });
 
         document.getElementById('openModalBtn').addEventListener('click', () => { document.getElementById('projectModal').style.display = 'flex'; });
         document.getElementById('closeModalBtn').addEventListener('click', () => { document.getElementById('projectModal').style.display = 'none'; });
