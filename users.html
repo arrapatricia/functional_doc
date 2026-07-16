@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paramount QA Portal - User Management</title>
+    <title>User Management Portal</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase JS Library CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         :root {
             --paramount-blue: #002f6c;
@@ -17,6 +21,7 @@
             --card-bg: var(--white);
             --text-color: var(--paramount-blue);
             --border-color: #e0e0e0;
+            --success-green: #278510;
             --danger-red: #d9383a;
         }
 
@@ -31,7 +36,7 @@
         * {
             margin: 0; padding: 0; box-sizing: border-box;
             font-family: 'Montserrat', sans-serif;
-            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
 
         body {
@@ -39,11 +44,6 @@
             color: var(--text-color);
             padding: 2rem;
             min-height: 100vh;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
         }
 
         .header {
@@ -55,26 +55,66 @@
             border-bottom: 2px solid var(--light-blue);
         }
 
-        .user-form-card {
+        .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .btn-logout {
+            background: none;
+            border: 1.5px solid var(--dark-gray);
+            color: var(--dark-gray);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .btn-logout:hover { border-color: var(--paramount-blue); color: var(--paramount-blue); }
+
+        .ump-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1.2fr;
+            gap: 2rem;
+        }
+
+        .card {
             background: var(--card-bg);
-            border: 1.5px solid var(--border-color);
             border-radius: 12px;
-            padding: 1.5rem;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1.5px solid var(--border-color);
             margin-bottom: 2rem;
         }
 
+        .card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            color: var(--paramount-blue);
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        [data-theme="dark"] .card h3 { color: var(--accent-blue); }
+
         .form-row {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr auto;
+            grid-template-columns: repeat(2, 1fr);
             gap: 15px;
-            align-items: end;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .form-group label {
-            display: block;
             font-size: 0.75rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
+            font-weight: 700;
+            color: var(--dark-gray);
+            text-transform: uppercase;
         }
 
         .form-group input, .form-group select {
@@ -84,11 +124,39 @@
             background: transparent;
             color: var(--text-color);
             border-radius: 8px;
-            outline: none;
             font-size: 0.9rem;
+            outline: none;
         }
 
-        .btn {
+        .checkbox-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 15px;
+            background: var(--light-gray);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        [data-theme="dark"] .checkbox-container { background: #1e293b; }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .checkbox-row input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
             background: var(--paramount-blue);
             color: white;
             border: none;
@@ -96,142 +164,422 @@
             border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
+            font-size: 0.9rem;
+            text-align: center;
         }
 
-        .btn:hover { background: var(--accent-blue); }
-        .btn-danger { background: var(--danger-red); }
-        .btn-danger:hover { background: #b91c1c; }
+        .btn-primary:hover { background: var(--accent-blue); }
 
-        .user-table {
+        /* User Table Styles */
+        table {
             width: 100%;
             border-collapse: collapse;
-            background: var(--card-bg);
-            border: 1.5px solid var(--border-color);
-            border-radius: 12px;
-            overflow: hidden;
+            margin-top: 1rem;
         }
 
-        .user-table th, .user-table td {
-            padding: 1rem;
+        th {
             text-align: left;
+            padding: 12px 16px;
+            font-size: 0.8rem;
+            color: var(--dark-gray);
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 16px;
+            font-size: 0.9rem;
             border-bottom: 1px solid var(--border-color);
         }
 
-        .user-table th {
-            background: var(--light-blue);
-            font-weight: 600;
-        }
-
         .role-badge {
+            display: inline-block;
             padding: 4px 10px;
             border-radius: 12px;
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
+            background: var(--light-blue);
+            color: var(--accent-blue);
         }
 
-        .role-admin { background: #e2fcdb; color: #278510; }
-        .role-ba { background: #e0f2fe; color: #0369a1; }
+        .badge-admin { background: #e2fcdb; color: var(--success-green); }
+
+        /* Enable/Disable Toggle Styles */
+        .status-toggle {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .status-toggle input { display: none; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--dark-gray);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px; width: 16px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--success-green); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        .btn-danger {
+            background: none;
+            border: 1px solid var(--danger-red);
+            color: var(--danger-red);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .btn-danger:hover { background: #fee; }
+
+        .role-settings-box {
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            background: var(--light-gray);
+        }
+        [data-theme="dark"] .role-settings-box { background: #1e293b; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h2>User Management Portal</h2>
-            <button class="btn" onclick="window.history.back()">Back to Dashboard</button>
+
+    <div class="header">
+        <h1>User Management Portal</h1>
+        <a href="dashboard.html?role=admin&user=admin" class="btn-logout">Back to Dashboard</a>
+    </div>
+
+    <div class="ump-grid">
+        <!-- LEFT COLUMN: USER MANAGEMENT -->
+        <div>
+            <!-- Form Card to Register Users -->
+            <div class="card">
+                <h3>Register New Access User</h3>
+                <form id="registerUserForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="regFullName" placeholder="e.g. John Doe" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="regUsername" placeholder="e.g. jdoe" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="regPassword" placeholder="••••••••" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Access Role</label>
+                            <select id="regRole" required></select>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                        <button type="submit" class="btn-primary">Create User Profile</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Table Card for Active Users list -->
+            <div class="card">
+                <h3>Directory of Users</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Full Name</th>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Status (Enabled)</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody"></tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="user-form-card">
-            <h3>Add New Portal User</h3>
-            <form id="userForm" style="margin-top: 1rem;">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>USERNAME</label>
-                        <input type="text" id="newUsername" required placeholder="e.g., msmith">
+        <!-- RIGHT COLUMN: DYNAMIC ROLE CREATION & PERMISSIONS -->
+        <div>
+            <!-- Create Role Builder -->
+            <div class="card">
+                <h3>Create Custom Role</h3>
+                <form id="createRoleForm">
+                    <div class="form-group" style="margin-bottom: 1.25rem;">
+                        <label>Role Name</label>
+                        <input type="text" id="newRoleInput" placeholder="e.g. stakeholder, qa_tester" required>
                     </div>
-                    <div class="form-group">
-                        <label>PASSWORD</label>
-                        <input type="password" id="newPassword" required placeholder="••••••••">
+                    <div class="checkbox-container">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--dark-gray); text-transform: uppercase;">Set Default Role Scope</span>
+                        <label class="checkbox-row"><input type="checkbox" id="roleCanCreate"> Create Projects</label>
+                        <label class="checkbox-row"><input type="checkbox" id="roleCanDelete"> Delete Projects</label>
+                        <label class="checkbox-row"><input type="checkbox" id="roleCanEdit"> Edit Page Content</label>
+                        <label class="checkbox-row"><input type="checkbox" id="roleCanManagePages"> Manage Sub-pages / Doc Imports</label>
+                        <label class="checkbox-row"><input type="checkbox" id="roleCanManageTags"> Manage Custom Tags</label>
                     </div>
-                    <div class="form-group">
-                        <label>ROLE</label>
-                        <select id="newRole">
-                            <option value="admin">Administrator</option>
-                            <option value="ba">Business Analyst (BA)</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn">Create User</button>
-                </div>
-            </form>
-        </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1.5rem;">+ Save Role</button>
+                </form>
+            </div>
 
-        <table class="user-table">
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="userListBody"></tbody>
-        </table>
+            <!-- Modify Active Roles Matrix -->
+            <div class="card">
+                <h3>Active Roles & Permissions Matrix</h3>
+                <div id="activeRolesPermissionsList"></div>
+            </div>
+        </div>
     </div>
 
     <script>
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
+        // --- DB SETUP CONFIGURATION ---
+        const SUB_URL = "https://ptqnasxskagxnkabtxqq.supabase.co"; 
+        const SUB_KEY = "sb_publishable_bWEgNSSxNTjrD9oXE5r4Bw_5tkDn493"; 
+        const supabaseClient = supabase.createClient(SUB_URL, SUB_KEY);
 
-        // Core dynamic user repository logic
-        let users = JSON.parse(localStorage.getItem('portal_users')) || [
-            { username: "admin", password: "admin123", role: "admin" },
-            { username: "ba", password: "ba123", role: "ba" }
-        ];
+        let rolesList = [];
+        let usersList = [];
 
-        const form = document.getElementById('userForm');
-        const listBody = document.getElementById('userListBody');
+        // --- FETCH ROLES & RE-POPULATE SELECT OPTIONS & MATRIX ---
+        async function fetchRoles() {
+            try {
+                const { data, error } = await supabaseClient.from('portal_roles').select('*');
+                if (error) throw error;
 
-        function renderUsers() {
-            listBody.innerHTML = '';
-            users.forEach((user, index) => {
-                const badgeClass = user.role === 'admin' ? 'role-admin' : 'role-ba';
+                rolesList = data;
+                populateRoleDropdowns();
+                renderRoleMatrix();
+            } catch (err) {
+                console.error("Error loading system roles:", err);
+            }
+        }
+
+        function populateRoleDropdowns() {
+            const selectDropdown = document.getElementById('regRole');
+            selectDropdown.innerHTML = '';
+            
+            rolesList.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role.role_name;
+                option.textContent = role.role_name.toUpperCase();
+                selectDropdown.appendChild(option);
+            });
+        }
+
+        // --- RENDER PERMISSIONS MATRIX PANEL ---
+        function renderRoleMatrix() {
+            const container = document.getElementById('activeRolesPermissionsList');
+            container.innerHTML = '';
+
+            rolesList.forEach(role => {
+                const isSystemProtected = (role.role_name === 'admin' || role.role_name === 'ba');
+                const row = `
+                    <div class="role-settings-box">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-bottom: 10px;">
+                            <strong style="text-transform: uppercase; color: var(--paramount-blue);">${role.role_name}</strong>
+                            ${isSystemProtected ? '<span style="font-size:0.7rem; color:var(--dark-gray); font-style:italic;">Protected Role</span>' : 
+                            `<button class="btn-danger" style="padding: 2px 6px; font-size: 0.65rem;" onclick="deleteRole('${role.role_name}')">Delete Role</button>`}
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label class="checkbox-row" style="font-size: 0.75rem;"><input type="checkbox" ${role.can_create_projects ? 'checked' : ''} onchange="updateRolePermission('${role.role_name}', 'can_create_projects', this.checked)"> Create Projects</label>
+                            <label class="checkbox-row" style="font-size: 0.75rem;"><input type="checkbox" ${role.can_delete_projects ? 'checked' : ''} onchange="updateRolePermission('${role.role_name}', 'can_delete_projects', this.checked)"> Delete Projects</label>
+                            <label class="checkbox-row" style="font-size: 0.75rem;"><input type="checkbox" ${role.can_edit_content ? 'checked' : ''} onchange="updateRolePermission('${role.role_name}', 'can_edit_content', this.checked)"> Edit Page Content</label>
+                            <label class="checkbox-row" style="font-size: 0.75rem;"><input type="checkbox" ${role.can_manage_pages ? 'checked' : ''} onchange="updateRolePermission('${role.role_name}', 'can_manage_pages', this.checked)"> Manage Pages & Imports</label>
+                            <label class="checkbox-row" style="font-size: 0.75rem;"><input type="checkbox" ${role.can_manage_tags ? 'checked' : ''} onchange="updateRolePermission('${role.role_name}', 'can_manage_tags', this.checked)"> Manage Custom Tags</label>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        // --- UPDATE DYNAMIC ROLE PERMISSION IN SUPABASE ---
+        async function updateRolePermission(roleName, column, isChecked) {
+            try {
+                const updatePayload = {};
+                updatePayload[column] = isChecked;
+
+                const { error } = await supabaseClient
+                    .from('portal_roles')
+                    .update(updatePayload)
+                    .eq('role_name', roleName);
+
+                if (error) throw error;
+            } catch (err) {
+                console.error("Error updating role permissions:", err);
+            }
+        }
+
+        // --- FETCH USERS ---
+        async function fetchUsers() {
+            try {
+                const { data, error } = await supabaseClient.from('portal_users').select('*');
+                if (error) throw error;
+
+                usersList = data;
+                renderUsersTable();
+            } catch (err) {
+                console.error("Error loading portal directory:", err);
+            }
+        }
+
+        function renderUsersTable() {
+            const tableBody = document.getElementById('userTableBody');
+            tableBody.innerHTML = '';
+
+            usersList.forEach(user => {
+                const isChecked = user.status === 'Enabled' ? 'checked' : '';
+                const roleClass = user.role === 'admin' ? 'role-badge badge-admin' : 'role-badge';
+                const isSystemProtected = user.username === 'admin';
+
                 const row = `
                     <tr>
-                        <td><strong>${user.username}</strong></td>
-                        <td><span class="role-badge ${badgeClass}">${user.role}</span></td>
+                        <td><strong>${user.display_name || 'No Name Set'}</strong></td>
+                        <td>${user.username}</td>
+                        <td><span class="${roleClass}">${user.role}</span></td>
                         <td>
-                            ${user.username !== 'admin' ? `<button class="btn btn-danger" onclick="deleteUser(${index})" style="padding: 4px 8px; font-size: 0.75rem;">Delete</button>` : '<span style="color:var(--dark-gray); font-size:0.8rem;">System Protection</span>'}
+                            <label class="status-toggle">
+                                <input type="checkbox" ${isChecked} ${isSystemProtected ? 'disabled' : ''} onchange="toggleUserStatus('${user.username}', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                        <td>
+                            ${isSystemProtected ? '<span style="font-size:0.75rem; color:var(--dark-gray); font-style:italic;">Protected</span>' : 
+                            `<button class="btn-danger" onclick="deleteUser('${user.username}')">Delete Access</button>`}
                         </td>
                     </tr>
                 `;
-                listBody.insertAdjacentHTML('beforeend', row);
+                tableBody.insertAdjacentHTML('beforeend', row);
             });
-            localStorage.setItem('portal_users', JSON.stringify(users));
         }
 
-        form.addEventListener('submit', (e) => {
+        // --- ADD A NEW ROLE WITH PERMISSIONS ---
+        document.getElementById('createRoleForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('newUsername').value.trim().toLowerCase();
-            const password = document.getElementById('newPassword').value;
-            const role = document.getElementById('newRole').value;
+            const inputVal = document.getElementById('newRoleInput').value.trim().toLowerCase();
 
-            if (users.find(u => u.username === username)) {
-                alert("Username already exists!");
-                return;
+            if (!inputVal) return;
+
+            const canCreate = document.getElementById('roleCanCreate').checked;
+            const canDelete = document.getElementById('roleCanDelete').checked;
+            const canEdit = document.getElementById('roleCanEdit').checked;
+            const canManagePages = document.getElementById('roleCanManagePages').checked;
+            const canManageTags = document.getElementById('roleCanManageTags').checked;
+
+            try {
+                const { error } = await supabaseClient.from('portal_roles').insert([{ 
+                    role_name: inputVal,
+                    can_create_projects: canCreate,
+                    can_delete_projects: canDelete,
+                    can_edit_content: canEdit,
+                    can_manage_pages: canManagePages,
+                    can_manage_tags: canManageTags
+                }]);
+                if (error) throw error;
+
+                document.getElementById('createRoleForm').reset();
+                await fetchRoles();
+            } catch (err) {
+                alert("Role already exists or save failed.");
+                console.error(err);
             }
-
-            users.push({ username, password, role });
-            form.reset();
-            renderUsers();
         });
 
-        function deleteUser(index) {
-            if (confirm("Are you sure you want to delete this user?")) {
-                users.splice(index, 1);
-                renderUsers();
+        // --- DELETE CUSTOM ROLE ---
+        async function deleteRole(roleName) {
+            if (confirm(`Are you sure you want to delete the role "${roleName}"? Any users assigned to this role will lose their custom workspace clearances.`)) {
+                try {
+                    const { error } = await supabaseClient.from('portal_roles').delete().eq('role_name', roleName);
+                    if (error) throw error;
+                    await fetchRoles();
+                } catch (err) {
+                    console.error("Error deleting role:", err);
+                }
             }
         }
 
-        renderUsers();
+        // --- REGISTER A NEW USER PROFILE ---
+        document.getElementById('registerUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('regFullName').value.trim();
+            const username = document.getElementById('regUsername').value.trim().toLowerCase();
+            const pass = document.getElementById('regPassword').value;
+            const role = document.getElementById('regRole').value;
+
+            try {
+                const { error } = await supabaseClient.from('portal_users').insert([{
+                    username: username,
+                    password: pass,
+                    role: role,
+                    display_name: name,
+                    status: 'Enabled'
+                }]);
+
+                if (error) throw error;
+
+                document.getElementById('registerUserForm').reset();
+                await fetchUsers();
+            } catch (err) {
+                alert("Username is already taken.");
+                console.error(err);
+            }
+        });
+
+        // --- TOGGLE ENABLED / DISABLED STATUS ---
+        async function toggleUserStatus(username, isEnabled) {
+            const nextStatus = isEnabled ? 'Enabled' : 'Disabled';
+            try {
+                const { error } = await supabaseClient
+                    .from('portal_users')
+                    .update({ status: nextStatus })
+                    .eq('username', username);
+
+                if (error) throw error;
+                await fetchUsers();
+            } catch (err) {
+                console.error("Could not toggle status state:", err);
+            }
+        }
+
+        // --- DELETE USER PROFILE ---
+        async function deleteUser(username) {
+            if (confirm(`Revoke login access and delete profile for "${username}"?`)) {
+                try {
+                    const { error } = await supabaseClient.from('portal_users').delete().eq('username', username);
+                    if (error) throw error;
+                    await fetchUsers();
+                } catch (err) {
+                    console.error("Could not complete delete request:", err);
+                }
+            }
+        }
+
+        // --- INITIAL DATA LOAD ---
+        async function init() {
+            const localTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', localTheme);
+            await fetchRoles();
+            await fetchUsers();
+        }
+
+        init();
     </script>
 </body>
 </html>

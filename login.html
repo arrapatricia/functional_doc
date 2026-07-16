@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Paramount Portal - Login</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Supabase Javascript Library CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         :root {
             --paramount-blue: #002f6c;
@@ -144,7 +148,7 @@
             <img src="docs/images/plgic_logowithname.bmp" alt="Paramount Life & General Insurance" class="brand-logo">
         </div>
         
-        <h2>Secure Single Sign-On</h2>
+        <h2>Hi!</h2>
         
         <form id="loginForm">
             <div class="input-group">
@@ -162,14 +166,11 @@
     </div>
 
     <script>
-        // Set up initial system users in database if none exist yet
-        if (!localStorage.getItem('portal_users')) {
-            const defaultUsers = [
-                { username: "admin", password: "admin123", role: "admin" },
-                { username: "ba", password: "ba123", role: "ba" }
-            ];
-            localStorage.setItem('portal_users', JSON.stringify(defaultUsers));
-        }
+// --- DB SETUP CONFIGURATION ---
+        const SUB_URL = "https://ptqnasxskagxnkabtxqq.supabase.co"; 
+        const SUB_KEY = "sb_publishable_bWEgNSSxNTjrD9oXE5r4Bw_5tkDn493"; 
+        // We name this 'supabaseClient' to avoid conflicting with the library name!
+        const supabaseClient = supabase.createClient(SUB_URL, SUB_KEY);
 
         const themeToggle = document.getElementById('themeToggle');
         const themeIcon = document.getElementById('themeIcon');
@@ -196,20 +197,28 @@
             }
         }
 
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const userVal = document.getElementById('username').value.trim().toLowerCase();
             const passVal = document.getElementById('password').value;
             const errorMsg = document.getElementById('errorMsg');
 
-            // Dynamic User validation check
-            const userList = JSON.parse(localStorage.getItem('portal_users'));
-            const matchedUser = userList.find(u => u.username === userVal && u.password === passVal);
+            try {
+                // Query using our correct client instance
+                const { data: user, error } = await supabaseClient
+                    .from('portal_users')
+                    .select('*')
+                    .eq('username', userVal)
+                    .single();
 
-            if (matchedUser) {
-                // Pass role AND username to save context
-                window.location.href = `dashboard.html?role=${matchedUser.role}&user=${matchedUser.username}`;
-            } else {
+                if (user && user.password === passVal) {
+                    window.location.href = `dashboard.html?role=${user.role}&user=${user.username}`;
+                } else {
+                    errorMsg.style.display = 'block';
+                }
+            } catch (err) {
+                console.error("Database check failed:", err);
+                errorMsg.textContent = "Database connection error. Check configuration.";
                 errorMsg.style.display = 'block';
             }
         });
