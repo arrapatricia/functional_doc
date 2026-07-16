@@ -6,24 +6,578 @@
     <title>Paramount QA Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+
+    <!-- Supabase Javascript Library CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Export Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-    <!-- 🎨 Your Modular CSS -->
-    <link rel="stylesheet" href="docs/stylesheets/dashboard.css">
+    <style>
+        :root {
+            --paramount-blue: #002f6c;
+            --accent-blue: #49b1ea;
+            --light-blue: #ebf3fc;
+            --dark-gray: #b2b2b2;
+            --light-gray: #f9f9f9;
+            --white: #ffffff;
+            --bg-color: var(--light-gray);
+            --card-bg: var(--white);
+            --text-color: var(--paramount-blue);
+            --border-color: #e0e0e0;
+            --success-green: #278510;
+            --danger-red: #d9383a;
+            --warning-amber: #f59e0b;
+            
+            /* Animation Constants */
+            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
+            --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 47, 108, 0.1), 0 10px 10px -5px rgba(0, 47, 108, 0.04);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1e293b;
+            --card-bg: #0f172a;
+            --text-color: #f8fafc;
+            --border-color: #334155;
+            --light-blue: #1e293b;
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+            transition: var(--transition-smooth);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 1rem;
+            min-height: 100vh;
+        }
+
+        @media (min-width: 768px) {
+            body { padding: 2rem; }
+        }
+
+        .view-section { display: none !important; opacity: 0; transform: translateY(10px); }
+        .view-section.active { 
+            display: flex !important; 
+            animation: slideFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* --- KEYFRAMES FOR PRETTY ANIMATIONS --- */
+        @keyframes slideFadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes modalPopUp {
+            from { opacity: 0; transform: scale(0.9) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @keyframes pulseBorder {
+            0% { border-color: var(--border-color); }
+            50% { border-color: var(--accent-blue); }
+            100% { border-color: var(--border-color); }
+        }
+
+        /* --- HEADER STYLING --- */
+        .header {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid var(--light-blue);
+        }
+
+        @media (min-width: 992px) {
+            .header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .brand-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .brand-wrapper:hover #mainPortalLogo {
+            transform: scale(1.08) rotate(-3deg);
+        }
+
+        .header-logo-img {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
+            transition: var(--transition-smooth);
+        }
+
+        .header h1 { font-size: 1.25rem; font-weight: 700; }
+
+        .user-info { 
+            display: flex; 
+            flex-wrap: wrap; 
+            align-items: center; 
+            gap: 10px; 
+            width: 100%;
+        }
+
+        @media (min-width: 992px) {
+            .user-info { width: auto; justify-content: flex-end; }
+        }
+
+        /* --- THE PRETTIER BUTTONS --- */
+        .btn-primary, .btn-logout, .clear-btn, .theme-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1.5px solid transparent;
+            box-shadow: var(--shadow-sm);
+            white-space: nowrap;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-primary {
+            background: var(--paramount-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(73, 177, 234, 0.35);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-logout {
+            background: transparent;
+            border-color: var(--dark-gray);
+            color: var(--dark-gray);
+        }
+
+        .btn-logout:hover { 
+            border-color: var(--danger-red); 
+            color: var(--danger-red);
+            background: rgba(217, 56, 58, 0.05);
+            transform: translateY(-2px);
+        }
+        
+        .btn-logout:active { transform: translateY(0); }
+
+        .theme-toggle-btn {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .theme-toggle-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .btn-icon {
+            background: var(--light-blue);
+            color: var(--accent-blue);
+            border: none;
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .btn-icon.delete-btn:hover { 
+            background: #fee; 
+            color: var(--danger-red); 
+            box-shadow: 0 4px 10px rgba(217, 56, 58, 0.15);
+        }
+
+        /* --- DASHBOARD / GRID SYSTEM --- */
+        .dashboard-container { gap: 2rem; width: 100%; }
+
+        .project-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            gap: 1.5rem;
+            align-content: start;
+            width: 100%;
+        }
+
+        .project-card {
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border: 1.5px solid var(--border-color);
+            position: relative;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--accent-blue);
+        }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .card-title { font-weight: 700; font-size: 1.1rem; }
+
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .card-desc { color: var(--dark-gray); font-size: 0.85rem; line-height: 1.5; }
+        .card-meta { font-size: 0.75rem; color: var(--dark-gray); font-weight: 600; }
+
+        .card-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1.5px solid var(--border-color);
+        }
+
+        /* --- MOBILE RESPONSIVE WORKSPACE CMS VIEW --- */
+        .workspace-container { 
+            display: flex;
+            flex-direction: column; 
+            gap: 1.5rem; 
+            width: 100%; 
+        }
+
+        @media (min-width: 992px) {
+            .workspace-container {
+                flex-direction: row;
+            }
+        }
+
+        .wiki-sidebar {
+            width: 100%;
+            background: var(--card-bg);
+            border: 1.5px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-height: none;
+            overflow-y: visible;
+            box-shadow: var(--shadow-md);
+        }
+
+        @media (min-width: 992px) {
+            .wiki-sidebar {
+                width: 320px;
+                max-height: 85vh;
+                overflow-y: auto;
+                position: sticky;
+                top: 20px;
+            }
+        }
+
+        .wiki-nav-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+
+        .wiki-nav-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid transparent;
+        }
+
+        .wiki-nav-item:hover { 
+            background: var(--light-blue); 
+            transform: translateX(3px);
+        }
+        
+        .wiki-nav-item.active { 
+            background: var(--paramount-blue); 
+            color: white; 
+            border-left-color: var(--accent-blue);
+        }
+
+        .analytics-block { border-top: 1.5px solid var(--border-color); padding-top: 1.25rem; }
+
+        .analytics-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.75rem;
+            color: var(--dark-gray);
+        }
+
+        .stat-tag-list { display: flex; flex-direction: column; gap: 8px; }
+        .stat-tag-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 600; }
+
+        .tag-pill {
+            background: var(--light-blue);
+            color: var(--accent-blue);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .delete-tag-btn {
+            background: none;
+            border: none;
+            color: var(--danger-red);
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .delete-tag-btn:hover { background: #fee; }
+
+        .wiki-content-area {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1.5px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-height: none;
+            overflow-y: visible;
+            box-shadow: var(--shadow-md);
+        }
+
+        @media (min-width: 768px) {
+            .wiki-content-area {
+                padding: 2.5rem;
+                max-height: 85vh;
+                overflow-y: auto;
+            }
+        }
+
+        .wiki-header {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border-bottom: 1.5px solid var(--border-color);
+            padding-bottom: 1.25rem;
+        }
+
+        @media (min-width: 576px) {
+            .wiki-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+        }
+
+        .wiki-body { font-size: 1rem; line-height: 1.8; flex: 1; color: var(--text-color); }
+
+        /* Workspace Project Metadata Board styling */
+        .workspace-metadata-board {
+            background: var(--light-blue);
+            border: 1.5px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        [data-theme="dark"] .workspace-metadata-board { background: #1e293b; }
+        
+        .metadata-section-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        @media (min-width: 576px) {
+            .metadata-section-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 992px) {
+            .metadata-section-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .metadata-field { display: flex; flex-direction: column; gap: 4px; }
+        .metadata-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--dark-gray);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        .metadata-value { font-size: 0.85rem; font-weight: 600; line-height: 1.5; }
+        
+        .metadata-team-assignees {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            border-top: 1.5px dashed var(--border-color);
+            padding-top: 12px;
+            margin-top: 5px;
+        }
+
+        @media (min-width: 768px) {
+            .metadata-team-assignees {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .sidebar-audit-section { border-top: 1.5px solid var(--border-color); padding-top: 1.25rem; margin-top: 0.5rem; }
+        .audit-log-list { display: flex; flex-direction: column; gap: 8px; margin-top: 0.75rem; max-height: 180px; overflow-y: auto; }
+        .audit-log-item {
+            background: var(--light-gray); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.75rem; border: 1px solid var(--border-color);
+        }
+        [data-theme="dark"] .audit-log-item { background: #1e293b; }
+        .log-meta { color: var(--dark-gray); font-size: 0.65rem; font-weight: 600; margin-top: 4px; }
+
+        /* --- EXECUTIVE NOTES STYLING --- */
+        .notes-scratchpad { border-top: 1.5px dashed var(--border-color); padding-top: 15px; margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .notes-textarea {
+            width: 100%; padding: 12px; border: 1.5px solid var(--border-color); background: var(--card-bg);
+            color: var(--text-color); border-radius: 8px; font-size: 0.85rem; resize: vertical; outline: none;
+        }
+        .notes-textarea:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(73, 177, 234, 0.15);
+        }
+        .historical-notes-feed { display: flex; flex-direction: column; gap: 8px; max-height: 140px; overflow-y: auto; }
+        .note-history-card { background: rgba(0, 47, 108, 0.03); border: 1px dashed var(--border-color); border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; }
+        [data-theme="dark"] .note-history-card { background: rgba(255, 255, 255, 0.03); }
+
+        /* --- TEST MANAGEMENT INTERFACE --- */
+        .test-management-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; }
+        .test-case-card {
+            background: var(--light-gray); border: 1.5px solid var(--border-color); border-radius: 12px; padding: 1.5rem;
+            display: flex; flex-direction: column; gap: 1.25rem; position: relative;
+        }
+        [data-theme="dark"] .test-case-card { background: #1e293b; }
+        
+        .test-grid-3 { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 15px; 
+        }
+
+        @media (min-width: 768px) {
+            .test-grid-3 {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        
+        /* Drag and Drop Box */
+        .dropzone-box {
+            border: 2px dashed var(--accent-blue); background: var(--card-bg); border-radius: 10px;
+            padding: 1.75rem; text-align: center; color: var(--paramount-blue); font-size: 0.85rem;
+            font-weight: 700; cursor: pointer; transition: var(--transition-smooth);
+            animation: pulseBorder 5s infinite;
+        }
+        .dropzone-box:hover, .dropzone-box.hover { 
+            background: var(--light-blue); 
+            border-color: var(--accent-blue);
+            transform: scale(1.01);
+        }
+        [data-theme="dark"] .dropzone-box { color: var(--white); }
+        
+        .media-preview-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+        .preview-media-wrapper { 
+            position: relative; width: 100px; height: 100px; border-radius: 8px; 
+            border: 1.5px solid var(--border-color); overflow: hidden; 
+            transition: var(--transition-smooth);
+        }
+        .preview-media-wrapper:hover {
+            transform: scale(1.08);
+            box-shadow: var(--shadow-md);
+        }
+        .preview-media-wrapper img, .preview-media-wrapper video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* Modal styling */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 47, 108, 0.45); justify-content: center; align-items: center; z-index: 1000;
+            backdrop-filter: blur(4px);
+            padding: 1rem;
+        }
+        .modal-content { 
+            background: var(--card-bg); 
+            border: 1.5px solid var(--border-color); 
+            padding: 2rem; 
+            border-radius: 18px; 
+            width: 100%; 
+            max-width: 550px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            animation: modalPopUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @media (min-width: 768px) {
+            .modal-content { padding: 2.5rem; }
+        }
+        .form-group { margin-bottom: 1.15rem; }
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--dark-gray); letter-spacing: 0.5px; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 0.75rem; border: 1.5px solid var(--border-color); background: transparent; color: var(--text-color); border-radius: 8px; font-size: 0.9rem; outline: none;
+            transition: var(--transition-smooth);
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(73, 177, 234, 0.15);
+        }
+    </style>
 </head>
 <body>
 
     <script>
-        // Inline role initialization before DOM loads
         const urlParams = new URLSearchParams(window.location.search);
         const role = urlParams.get('role') || 'admin';
         const activeUser = decodeURIComponent(urlParams.get('user') || 'admin');
+
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
     </script>
@@ -65,6 +619,7 @@
             </div>
             <ul class="wiki-nav-list" id="wikiNavList"></ul>
             
+            <!-- STANDALONE TEST PORTAL TAB ROUTE LINK -->
             <div style="border-top: 1.5px solid var(--border-color); padding-top: 12px; margin-top: 5px;">
                 <ul class="wiki-nav-list">
                     <li class="wiki-nav-item" id="testSuiteTabItem" onclick="switchPage('test-suite')">🧪 QA Test Management</li>
@@ -194,10 +749,801 @@
         </div>
     </div>
 
-    <!-- ⚙️ Your Modular Javascripts -->
-    <script src="docs/javascripts/app.js"></script>
-    <script src="docs/javascripts/project-manager.js"></script>
-    <script src="docs/javascripts/qa-test-suite.js"></script>
-    <script src="docs/javascripts/document-editor.js"></script>
+    <script>
+        // --- DB SETUP CONFIGURATION ---
+        const SUB_URL = "https://ptqnasxskagxnkabtxqq.supabase.co"; 
+        const SUB_KEY = "sb_publishable_bWEgNSSxNTjrD9oXE5r4Bw_5tkDn493"; 
+        const supabaseClient = supabase.createClient(SUB_URL, SUB_KEY);
+
+        // --- EDGE FUNCTION URL FOR SIGNED UPLOADS (KEYLESS SECURITY) ---
+        const SECURE_UPLOAD_ENDPOINT = "https://ptqnasxskagxnkabtxqq.functions.supabase.co/get-presigned-url";
+
+        let projects = [];
+        let currentActiveProjectId = null;
+        let currentActivePageIndex = 0; 
+        let isEditingMode = false;
+        let quillEditor = null; 
+        let temporaryAWSMediaUrls = [];
+
+        let permissions = {
+            canCreateProjects: false,
+            canDeleteProjects: false,
+            canEditContent: false,
+            canManagePages: false,
+            canManageTags: false
+        };
+
+        const projectGrid = document.getElementById('projectGrid');
+        const dashboardView = document.getElementById('dashboardView');
+        const workspaceView = document.getElementById('workspaceView');
+        const headerSubtitle = document.getElementById('headerSubtitle');
+        const wikiNavList = document.getElementById('wikiNavList');
+        const wikiContentArea = document.getElementById('wikiContentArea');
+        const tagStatList = document.getElementById('tagStatList');
+        const sidebarAuditLogList = document.getElementById('sidebarAuditLogList');
+        const roleLabel = document.getElementById('roleLabel');
+        const userMgmtBtn = document.getElementById('userManagementBtn');
+        const userDisplayNameLabel = document.getElementById('userDisplayNameLabel');
+        const userBadgeContainer = document.querySelector('.user-badge-container');
+        const auditTitleLabel = document.getElementById('auditTitleLabel');
+        const mainPortalLogo = document.getElementById('mainPortalLogo');
+
+        const firstName = activeUser.split(' ')[0];
+        userDisplayNameLabel.textContent = firstName;
+
+        if (role === 'admin') {
+            roleLabel.textContent = 'Admin Access';
+            userMgmtBtn.style.display = 'block';
+        } else {
+            roleLabel.textContent = `${role.toUpperCase()} Access`;
+            userBadgeContainer.style.background = '#e0f2fe';
+            userBadgeContainer.style.color = '#0369a1';
+        }
+
+        if (savedTheme === 'dark') {
+            mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_white.png';
+        } else {
+            mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_blue.png';
+        }
+
+        function getCurrentFormattedDate() { return new Date().toISOString().split('T')[0]; }
+        function getCurrentFormattedTimestamp() { return new Date().toLocaleTimeString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+        function getAuthorName() { return activeUser; }
+
+        async function loadUserPermissions() {
+            try {
+                const { data, error } = await supabaseClient.from('portal_roles').select('*').eq('role_name', role).single();
+                if (error) throw error;
+                if (data) {
+                    permissions = {
+                        canCreateProjects: data.can_create_projects,
+                        canDeleteProjects: data.can_delete_projects,
+                        canEditContent: data.can_edit_content,
+                        canManagePages: data.can_manage_pages,
+                        canManageTags: data.can_manage_tags
+                    };
+                }
+            } catch (err) { console.error("Failed to authenticate dynamic clearances:", err); }
+        }
+
+        async function fetchProjectsFromDB() {
+            try {
+                const { data, error } = await supabaseClient.from('projects').select('*');
+                if (error) throw error;
+                if (data) {
+                    projects = data.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        desc: p.desc,
+                        objectives: p.objectives,
+                        requestor: p.requestor,
+                        status: p.status,
+                        devAssignee: p.dev_assignee,
+                        qaAssignee: p.qa_assignee,
+                        baAssignee: p.ba_assignee,
+                        dateCreated: p.date_created,
+                        createdBy: p.created_by,
+                        customTags: p.custom_tags || [],
+                        pages: p.pages || [],
+                        notesHistory: p.notes_history || [],
+                        testSuite: p.test_suite || [],
+                        testHistory: p.test_history || []
+                    }));
+                    renderDashboard();
+                }
+            } catch (err) { console.error("Error fetching projects:", err); }
+        }
+
+        function renderDashboard() {
+            projectGrid.innerHTML = '';
+            projects.forEach(project => {
+                const dateText = project.dateCreated;
+                const hasOwnership = (role === 'admin') || (project.createdBy === activeUser);
+                const canDelete = permissions.canDeleteProjects && hasOwnership;
+
+                let pillColor = '#64748b'; let pillBg = '#f1f5f9';
+                if (project.status === 'Launched') { pillColor = 'var(--success-green)'; pillBg = '#e2fcdb'; }
+                else if (project.status === 'In Progress') { var Color = 'var(--accent-blue)'; pillBg = '#ebf3fc'; pillColor = Color; }
+
+                const card = `
+                    <div class="project-card">
+                        <div class="card-header">
+                            <div class="card-title">${project.name}</div>
+                            <div class="status-pill" style="color: ${pillColor}; background: ${pillBg}; border: 1px solid ${pillColor}40;">${project.status || 'To Do'}</div>
+                        </div>
+                        <div class="card-desc">${project.desc}</div>
+                        <div class="card-meta">📅 Created: ${dateText}</div>
+                        <div class="card-meta" style="color:var(--accent-blue);">👤 Owner: ${project.createdBy || 'admin'}</div>
+                        <div class="card-footer">
+                            <button class="btn-primary" onclick="openProjectWorkspace('${project.id}')">Open Folder</button>
+                            <div style="display: flex; gap: 8px;">
+                                ${canDelete ? `<button class="btn-icon delete-btn" onclick="deleteProject('${project.id}')">🗑</button>` : '<span style="font-size:0.75rem; color:var(--dark-gray); align-self:center;">View Only</span>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                projectGrid.insertAdjacentHTML('beforeend', card);
+            });
+        }
+
+        function handleDragOver(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.add('hover'); }
+        function handleDragLeave(e) { e.preventDefault(); document.getElementById('mediaDropzone').classList.remove('hover'); }
+        
+        // --- STREAMING DRAGGED FILES DIRECTLY TO AWS S3 VIA SECURE SUPABASE EDGE FUNCTION ---
+        async function handleFileDrop(e) {
+            e.preventDefault();
+            const dropzone = document.getElementById('mediaDropzone');
+            dropzone.classList.remove('hover');
+            dropzone.textContent = "⏳ Requesting secure S3 channel...";
+
+            const files = e.dataTransfer.files;
+            for (let file of files) {
+                if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+                    const uniqueFileName = `evidence_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+                    
+                    try {
+                        const signResponse = await fetch(SECURE_UPLOAD_ENDPOINT, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fileName: uniqueFileName, fileType: file.type })
+                        });
+
+                        if (!signResponse.ok) throw new Error("Failed to sign upload handshake.");
+                        const { presignedUrl, publicUrl } = await signResponse.json();
+
+                        dropzone.textContent = "⏳ Streaming file to AWS S3 vault...";
+
+                        const uploadResponse = await fetch(presignedUrl, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': file.type },
+                            body: file
+                        });
+
+                        if (!uploadResponse.ok) throw new Error("Failed to upload payload directly to S3.");
+
+                        temporaryAWSMediaUrls.push({ type: file.type, url: publicUrl });
+                        renderMediaPreviews();
+                    } catch (err) {
+                        console.error("AWS Secure Upload Failure:", err);
+                        alert("Secure upload handshake failed. Please check your console logs.");
+                    }
+                }
+            }
+            dropzone.textContent = "📂 Drag & Drop Execution Screenshots or Video Recordings here";
+        }
+
+        function renderMediaPreviews() {
+            const container = document.getElementById('mediaPreviewContainer');
+            container.innerHTML = '';
+            temporaryAWSMediaUrls.forEach(file => {
+                const element = file.type.startsWith('image/') ? 
+                    `<div class="preview-media-wrapper"><img src="${file.url}"></div>` : 
+                    `<div class="preview-media-wrapper"><video src="${file.url}" controls></video></div>`;
+                container.insertAdjacentHTML('beforeend', element);
+            });
+        }
+
+        function renderWorkspaceSidebar() {
+            wikiNavList.innerHTML = '';
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            document.getElementById('testSuiteTabItem').classList.remove('active');
+            
+            project.pages.forEach((page, index) => {
+                const isActive = (index === currentActivePageIndex && typeof currentActivePageIndex === 'number') ? 'active' : '';
+                const item = `
+                    <li class="wiki-nav-item ${isActive}" onclick="switchPage(${index})">
+                        <span>📄 ${page.title}</span>
+                        ${(index !== 0 && permissions.canManagePages) ? `<span style="font-size:0.8rem; opacity:0.7; cursor:pointer;" onclick="deleteSubPage(event, ${index})">✕</span>` : ''}
+                    </li>
+                `;
+                wikiNavList.insertAdjacentHTML('beforeend', item);
+            });
+
+            if (currentActivePageIndex === 'test-suite') {
+                document.getElementById('testSuiteTabItem').classList.add('active');
+            }
+        }
+
+        function switchPage(target) {
+            currentActivePageIndex = target;
+            isEditingMode = false;
+            renderWorkspaceSidebar();
+            renderWorkspaceContent();
+            calculateWordingTags();
+        }
+
+        function renderWorkspaceContent() {
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            
+            if (currentActivePageIndex === 'test-suite') {
+                auditTitleLabel.textContent = "QA Suite Audit Trail";
+                renderTestManagementSuite(project);
+                renderTestHistoryAuditLogs(project);
+                return;
+            }
+
+            auditTitleLabel.textContent = "Audit Trail & Versions";
+            const page = project.pages[currentActivePageIndex];
+            if (!page.history) { page.history = [{ version: "v1.0", author: "System Default", timestamp: getCurrentFormattedTimestamp(), action: "Initial import" }]; }
+
+            let auditLogHtml = '';
+            page.history.forEach(log => {
+                auditLogHtml += `<div class="audit-log-item"><div><strong style="color:var(--accent-blue);">${log.version}</strong> - <span>${log.action}</span></div><div class="log-meta">By <strong>${log.author}</strong> on ${log.timestamp}</div></div>`;
+            });
+            sidebarAuditLogList.innerHTML = auditLogHtml;
+
+            let historicalNotesCardsHtml = '';
+            if (project.notesHistory && project.notesHistory.length > 0) {
+                [...project.notesHistory].reverse().forEach(note => {
+                    historicalNotesCardsHtml += `<div class="note-history-card"><div style="font-size:0.7rem; color:var(--dark-gray); font-weight:600; margin-bottom:3px; display:flex; justify-content:space-between;"><span>👤 ${note.author}</span><span>📅 ${note.timestamp}</span></div><div style="color:var(--text-color); font-weight:500;">${note.note}</div></div>`;
+                });
+            } else { historicalNotesCardsHtml = `<span style="font-size:0.75rem; color:var(--dark-gray); font-style:italic;">No historical comments left yet.</span>`; }
+
+            let metaBoardHtml = '';
+            if (currentActivePageIndex === 0) {
+                metaBoardHtml = `
+                    <div class="workspace-metadata-board">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px;">
+                            <span class="metadata-label" style="font-weight: 700; color: var(--text-color);">Project Specifications</span>
+                            ${permissions.canEditContent ? `<button class="btn-primary" onclick="openEditSpecsModal()" style="font-size: 0.7rem; padding: 4px 10px;">✎ Edit Specs</button>` : ''}
+                        </div>
+                        <div class="metadata-section-grid">
+                            <div class="metadata-field"><span class="metadata-label">About the Project</span><span class="metadata-value">${project.desc || 'N/A'}</span></div>
+                            <div class="metadata-field"><span class="metadata-label">Objectives</span><span class="metadata-value">${project.objectives || 'N/A'}</span></div>
+                            <div class="metadata-field">
+                                <span class="metadata-label">Project Status</span>
+                                ${permissions.canEditContent ? `
+                                    <select onchange="updateProjectStatusInline('${project.id}', this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1.5px solid var(--border-color); background: var(--card-bg); color: var(--text-color); font-weight: 600; font-size: 0.85rem; width: fit-content; outline: none; margin-top: 4px; cursor: pointer;">
+                                        <option value="To Do" ${project.status === 'To Do' ? 'selected' : ''}>To Do</option>
+                                        <option value="In Progress" ${project.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                        <option value="Launched" ${project.status === 'Launched' ? 'selected' : ''}>Launched</option>
+                                    </select>
+                                ` : `<span class="metadata-value" style="font-weight: 700; color: var(--accent-blue);">${project.status || 'To Do'}</span>`}
+                            </div>
+                        </div>
+                        <div class="metadata-team-assignees">
+                            <div class="metadata-field"><span class="metadata-label">Requestor</span><span class="metadata-value">👤 ${project.requestor || 'N/A'}</span></div>
+                            <div class="metadata-field"><span class="metadata-label">Dev Assignee</span><span class="metadata-value">💻 ${project.devAssignee || 'Unassigned'}</span></div>
+                            <div class="metadata-field"><span class="metadata-label">QA Assignee</span><span class="metadata-value">🛡️ ${project.qaAssignee || 'Unassigned'}</span></div>
+                            <div class="metadata-field"><span class="metadata-label">BA Assignee</span><span class="metadata-value">📋 ${project.baAssignee || 'Unassigned'}</span></div>
+                        </div>
+                        <div class="notes-scratchpad">
+                            <span class="metadata-label" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>💬 Executive Notes & Boss Feedbacks</span>
+                                ${permissions.canEditContent ? `<button class="btn-primary" onclick="saveHistoricalScratchpadNote('${project.id}')" style="font-size: 0.65rem; padding: 4px 10px; background: var(--paramount-blue); color: white;">💾 Append Note</button>` : ''}
+                            </span>
+                            ${permissions.canEditContent ? `<textarea id="scratchpadNotesArea" class="notes-textarea" rows="1" placeholder="Type boss updates or raw notes here..."></textarea>` : ''}
+                            <div style="font-size:0.7rem; font-weight:700; color:var(--dark-gray); margin-top:5px; text-transform:uppercase;">Notes Timeline Tracker</div>
+                            <div class="historical-notes-feed">${historicalNotesCardsHtml}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (isEditingMode) {
+                wikiContentArea.innerHTML = `
+                    <div class="wiki-header"><h2>Editing: ${page.title}</h2><div style="display: flex; gap: 10px;"><button class="btn-logout" onclick="cancelEditing()">Cancel</button><button class="btn-primary" onclick="savePageContent()">Save Changes</button></div></div>
+                    <div id="editor-container"></div>
+                `;
+                quillEditor = new Quill('#editor-container', { theme: 'snow', modules: { toolbar: [[{ 'header': [1, 2, 3, false] }], ['bold', 'italic', 'underline', 'strike'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['blockquote', 'code-block'], ['clean']] } });
+                quillEditor.clipboard.dangerouslyPasteHTML(page.content || '');
+            } else {
+                wikiContentArea.innerHTML = `
+                    <div class="wiki-header">
+                        <h2>${page.title}</h2>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            ${permissions.canEditContent ? `<button class="btn-primary" onclick="enterEditMode()">✎ Edit Content</button>` : '<span style="color:var(--dark-gray); font-size:0.9rem; font-weight:600;">🔒 View Only Mode</span>'}
+                            <button class="btn-primary" onclick="exportToDocx()" style="background: #2b579a; color: white;">📄 Export DOCX</button>
+                            <button class="btn-primary" onclick="exportToPdf()" style="background: #e06666; color: white;">🛑 Export PDF</button>
+                        </div>
+                    </div>
+                    ${metaBoardHtml}
+                    <div class="wiki-body" id="wikiContentToExport">${page.content || '<p>This page is empty.</p>'}</div>
+                `;
+            }
+        }
+
+        function renderTestHistoryAuditLogs(project) {
+            let logsHtml = '';
+            if (project.testHistory && project.testHistory.length > 0) {
+                [...project.testHistory].reverse().forEach(log => {
+                    logsHtml += `
+                        <div class="audit-log-item" style="margin-bottom: 6px; border-left: 3px solid var(--warning-amber);">
+                            <div><strong>${log.action}</strong></div>
+                            <div class="log-meta">By <strong>${log.author}</strong> on ${log.timestamp}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                logsHtml = `<div style="font-size:0.75rem; color:var(--dark-gray); font-style:italic; padding:5px;">No test modifications logged yet.</div>`;
+            }
+            sidebarAuditLogList.innerHTML = logsHtml;
+        }
+
+        function renderTestManagementSuite(project) {
+            const hasModificationAccess = (role === 'admin' || role === 'qa');
+
+            let testingListRowsHtml = '';
+            if (project.testSuite && project.testSuite.length > 0) {
+                project.testSuite.forEach((item, idx) => {
+                    let mediaBlockHtml = '';
+                    if (item.attachments && item.attachments.length > 0) {
+                        item.attachments.forEach(file => {
+                            mediaBlockHtml += file.type.startsWith('image/') ? 
+                                `<div class="preview-media-wrapper"><a href="${file.url}" target="_blank"><img src="${file.url}"></a></div>` : 
+                                `<div class="preview-media-wrapper"><video src="${file.url}" controls></video></div>`;
+                        });
+                    }
+
+                    testingListRowsHtml += `
+                        <div class="test-case-card">
+                            <div style="position:absolute; top:1.5rem; right:1.5rem; display:flex; gap:10px; align-items:center;">
+                                <span class="role-badge" style="background:#fef3c7; color:#d97706; padding: 4px 8px;">v1.0</span>
+                                ${hasModificationAccess ? `
+                                    <button class="btn-primary" style="background:none; color:var(--accent-blue); font-weight:600; font-size:0.8rem; border:1px solid var(--border-color); padding:4px 8px; border-radius:4px;" onclick="openEditTestCaseModal(${idx})">✎ Edit</button>
+                                    <button class="btn-primary" style="background:none; color:var(--danger-red); font-weight:600; font-size:0.8rem; border:1px solid #fee; padding:4px 8px; border-radius:4px;" onclick="removeTestCaseItem(${idx})">🗑 Delete</button>
+                                ` : ''}
+                            </div>
+                            <div>
+                                <div class="metadata-label" style="color:var(--accent-blue);">Test Scenario</div>
+                                <div style="font-weight:700; font-size:1.1rem; margin-top:3px; max-width:80%;">${item.scenario}</div>
+                            </div>
+                            <div class="test-grid-3">
+                                <div>
+                                    <div class="metadata-label">Acceptance Criteria</div>
+                                    <div style="font-size:0.85rem; margin-top:4px; line-height:1.4; white-space:pre-wrap;">${item.acceptanceCriteria}</div>
+                                </div>
+                                <div>
+                                    <div class="metadata-label">Execution Steps</div>
+                                    <div style="font-size:0.85rem; margin-top:4px; line-height:1.4; white-space:pre-wrap; color:${!item.steps ? 'var(--dark-gray)' : 'inherit'}; font-style:${!item.steps ? 'italic' : 'normal'};">${item.steps || 'No execution steps specified.'}</div>
+                                </div>
+                                <div>
+                                    <div class="metadata-label">Attached Artifact Evidence</div>
+                                    <div class="media-preview-row">${mediaBlockHtml || '<span style="font-style:italic; font-size:0.8rem; color:var(--dark-gray);">No images or video recordings attached.</span>'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                testingListRowsHtml = `
+                    <div style="text-align:center; padding:3rem; color:var(--dark-gray);">
+                        <p style="font-size:1.5rem; font-weight:500;">No test cases have been defined yet.</p>
+                        <p style="font-size:0.85rem; margin-top:5px;">${hasModificationAccess ? 'Click "+ Add Test Plan" above to create execution validation matrix layers.' : 'BAs can review configuration matrices here once defined by QA specialists.'}</p>
+                    </div>
+                `;
+            }
+
+            wikiContentArea.innerHTML = `
+                <div class="wiki-header">
+                    <div>
+                        <h2>🧪 Dynamic QA Test Suite</h2>
+                        <p style="font-size:0.8rem; color:var(--dark-gray); font-weight:500; margin-top:2px;">Integrated scenario logging mapping for functional engineering tracks</p>
+                    </div>
+                    ${hasModificationAccess ? `<button class="btn-primary" onclick="openTestCaseModal()">+ Add Test Plan</button>` : '<span class="role-badge" style="background:var(--light-blue); color:var(--accent-blue);">📋 BA Documentation Mode</span>'}
+                </div>
+                <div class="test-management-container">${testingListRowsHtml}</div>
+            `;
+        }
+
+        function openTestCaseModal() { 
+            temporaryAWSMediaUrls = [];
+            document.getElementById('editTestCaseIndex').value = "";
+            document.getElementById('testModalTitle').textContent = "Add New Test Plan Definition";
+            document.getElementById('saveTestCaseBtn').textContent = "Append Test Plan";
+            document.getElementById('mediaPreviewContainer').innerHTML = '';
+            document.getElementById('testCaseForm').reset();
+            document.getElementById('testCaseModal').style.display = 'flex'; 
+        }
+
+        function openEditTestCaseModal(index) {
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            const item = project.testSuite[index];
+            if (!item) return;
+
+            openTestCaseModal();
+            document.getElementById('editTestCaseIndex').value = index;
+            document.getElementById('testModalTitle').textContent = "Modify Test Plan Specifications";
+            document.getElementById('saveTestCaseBtn').textContent = "Save Modifications";
+
+            document.getElementById('testScenarioInput').value = item.scenario || '';
+            document.getElementById('testACInput').value = item.acceptanceCriteria || '';
+            document.getElementById('testStepsInput').value = item.steps || '';
+            
+            temporaryAWSMediaUrls = item.attachments || [];
+            renderMediaPreviews();
+        }
+
+        function closeTestCaseModal() { document.getElementById('testCaseModal').style.display = 'none'; }
+
+        document.getElementById('testCaseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            const editIndexStr = document.getElementById('editTestCaseIndex').value;
+
+            const scenarioText = document.getElementById('testScenarioInput').value.trim();
+            const payload = {
+                scenario: scenarioText,
+                acceptanceCriteria: document.getElementById('testACInput').value.trim(),
+                steps: document.getElementById('testStepsInput').value.trim(),
+                attachments: temporaryAWSMediaUrls
+            };
+
+            if (!project.testSuite) project.testSuite = [];
+            if (!project.testHistory) project.testHistory = [];
+
+            let logActionText = "";
+
+            if (editIndexStr !== "") {
+                const idx = parseInt(editIndexStr);
+                project.testSuite[idx] = payload;
+                logActionText = `Updated Scenario: "${scenarioText.substring(0, 25)}..."`;
+            } else {
+                project.testSuite.push(payload);
+                logActionText = `Created Scenario: "${scenarioText.substring(0, 25)}..."`;
+            }
+
+            project.testHistory.push({
+                author: getAuthorName(),
+                timestamp: getCurrentFormattedTimestamp(),
+                action: logActionText
+            });
+
+            try {
+                const { error } = await supabaseClient
+                    .from('projects')
+                    .update({ 
+                        test_suite: project.testSuite,
+                        test_history: project.testHistory
+                    })
+                    .eq('id', project.id);
+
+                if (error) throw error;
+                closeTestCaseModal();
+                renderWorkspaceContent();
+            } catch (err) { console.error(err); }
+        });
+
+        async function removeTestCaseItem(index) {
+            if (!confirm("Are you sure you want to completely delete this test scenario definition from this project track?")) return;
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            const deletedScenarioName = project.testSuite[index]?.scenario || "Unknown";
+            
+            project.testSuite.splice(index, 1);
+
+            if (!project.testHistory) project.testHistory = [];
+            project.testHistory.push({
+                author: getAuthorName(),
+                timestamp: getCurrentFormattedTimestamp(),
+                action: `Deleted Scenario: "${deletedScenarioName.substring(0, 25)}..."`
+            });
+
+            try {
+                const { error } = await supabaseClient
+                    .from('projects')
+                    .update({ 
+                        test_suite: project.testSuite,
+                        test_history: project.testHistory
+                    })
+                    .eq('id', project.id);
+
+                if (error) throw error;
+                renderWorkspaceContent();
+            } catch (err) { console.error(err); }
+        }
+
+        async function saveHistoricalScratchpadNote(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+            const inputField = document.getElementById('scratchpadNotesArea');
+            const noteText = inputField.value.trim();
+            if (!noteText) return;
+
+            const noteEntry = { author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), note: noteText };
+            if (!project.notesHistory) project.notesHistory = [];
+            project.notesHistory.push(noteEntry);
+
+            const page = project.pages[0];
+            const nextVersionNumber = (parseFloat(page.history[page.history.length - 1].version.replace('v', '')) + 0.1).toFixed(1);
+            page.history.push({ version: `v${nextVersionNumber}`, author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), action: `Appended an executive note entry` });
+
+            try {
+                const { error } = await supabaseClient.from('projects').update({ notes_history: project.notesHistory, pages: project.pages }).eq('id', project.id);
+                if (error) throw error;
+                inputField.value = ''; renderWorkspaceContent();
+            } catch (err) { console.error(err); }
+        }
+
+        async function updateProjectStatusInline(projectId, newStatus) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+            project.status = newStatus;
+            const page = project.pages[0];
+            const nextVersionNumber = (parseFloat(page.history[page.history.length - 1].version.replace('v', '')) + 0.1).toFixed(1);
+            page.history.push({ version: `v${nextVersionNumber}`, author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), action: `Updated status directly to: ${newStatus}` });
+
+            try {
+                const { error } = await supabaseClient.from('projects').update({ status: newStatus, pages: project.pages }).eq('id', project.id);
+                if (error) throw error; renderWorkspaceContent();
+            } catch (err) { console.error(err); }
+        }
+
+        function enterEditMode() { isEditingMode = true; renderWorkspaceContent(); }
+        function cancelEditing() { isEditingMode = false; renderWorkspaceContent(); }
+
+        async function savePageContent() {
+            const newHTMLContent = quillEditor.getSemanticHTML(); 
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            const page = project.pages[currentActivePageIndex];
+            const nextVersionNumber = (parseFloat(page.history[page.history.length - 1].version.replace('v', '')) + 0.1).toFixed(1);
+            page.history.push({ version: `v${nextVersionNumber}`, author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), action: "Updated documentation contents" });
+            page.content = newHTMLContent;
+
+            try {
+                const { error } = await supabaseClient.from('projects').update({ pages: project.pages }).eq('id', project.id);
+                if (error) throw error; isEditingMode = false; renderWorkspaceContent(); calculateWordingTags();
+            } catch (err) { console.error(err); }
+        }
+
+        function openNewPageModal() { document.getElementById('subPageModal').style.display = 'flex'; }
+        function closeSubPageModal() { document.getElementById('subPageModal').style.display = 'none'; }
+
+        document.getElementById('subPageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('subPageTitle').value;
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            project.pages.push({ title: title, content: `<h1>${title}</h1><p>Start editing content here...</p>`, history: [{ version: "v1.0", author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), action: "Created blank page" }] });
+
+            try {
+                const { error } = await supabaseClient.from('projects').update({ pages: project.pages }).eq('id', project.id);
+                if (error) throw error; closeSubPageModal(); document.getElementById('subPageForm').reset(); currentActivePageIndex = project.pages.length - 1; renderWorkspaceSidebar(); renderWorkspaceContent(); calculateWordingTags();
+            } catch (err) { console.error(err); }
+        });
+
+        async function deleteSubPage(event, index) {
+            event.stopPropagation();
+            if (!confirm("Are you sure you want to delete this sub-page?")) return;
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            project.pages.splice(index, 1);
+            if (currentActivePageIndex >= project.pages.length) { currentActivePageIndex = project.pages.length - 1; }
+
+            try {
+                const { error } = await supabaseClient.from('projects').update({ pages: project.pages }).eq('id', project.id);
+                if (error) throw error; renderWorkspaceSidebar(); renderWorkspaceContent(); calculateWordingTags();
+            } catch (err) { console.error(err); }
+        }
+
+        function openEditSpecsModal() {
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            document.getElementById('editProjName').value = project.name || '';
+            document.getElementById('editProjDesc').value = project.desc || '';
+            document.getElementById('editProjObjectives').value = project.objectives || '';
+            document.getElementById('editProjRequestor').value = project.requestor || '';
+            document.getElementById('editProjStatus').value = project.status || 'To Do';
+            document.getElementById('editProjDev').value = project.devAssignee || '';
+            document.getElementById('editProjQA').value = project.qaAssignee || '';
+            document.getElementById('editProjBA').value = project.baAssignee || '';
+            document.getElementById('editSpecsModal').style.display = 'flex';
+        }
+        function closeEditSpecsModal() { document.getElementById('editSpecsModal').style.display = 'none'; }
+
+        document.getElementById('editSpecsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            project.name = document.getElementById('editProjName').value;
+            project.desc = document.getElementById('editProjDesc').value;
+            project.objectives = document.getElementById('editProjObjectives').value;
+            project.requestor = document.getElementById('editProjRequestor').value;
+            project.status = document.getElementById('editProjStatus').value;
+            const dev = document.getElementById('editProjDev').value;
+            const qa = document.getElementById('editProjQA').value;
+            const ba = document.getElementById('editProjBA').value;
+
+            const page = project.pages[currentActivePageIndex];
+            const nextVersionNumber = (parseFloat(page.history[page.history.length - 1].version.replace('v', '')) + 0.1).toFixed(1);
+            page.history.push({ version: `v${nextVersionNumber}`, author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), action: "Updated project metadata specifications" });
+
+            try {
+                const { error } = await supabaseClient.from('projects').update({ name: project.name, desc: project.desc, objectives: project.objectives, requestor: project.requestor, status: project.status, dev_assignee: dev, qa_assignee: qa, ba_assignee: ba, pages: project.pages }).eq('id', project.id);
+                if (error) throw error; project.devAssignee = dev; project.qaAssignee = qa; project.baAssignee = ba; headerSubtitle.innerHTML = `/ ${project.name}`; closeEditSpecsModal(); renderWorkspaceContent();
+            } catch (err) { console.error(err); }
+        });
+
+        async function addCustomTag() {
+            const tagName = prompt("Enter tag (e.g., security):"); if (!tagName) return;
+            let formattedTag = tagName.trim().toLowerCase();
+            if (!formattedTag.startsWith('[')) formattedTag = '[' + formattedTag; if (!formattedTag.endsWith(']')) formattedTag = formattedTag + ']';
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            if (!project.customTags) project.customTags = [];
+            if (project.customTags.includes(formattedTag)) { alert("Tag exists!"); return; }
+            project.customTags.push(formattedTag);
+            try { await supabaseClient.from('projects').update({ custom_tags: project.customTags }).eq('id', project.id); calculateWordingTags(); } catch (err) { console.error(err); }
+        }
+
+        async function deleteCustomTag(tagToDelete) {
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            if (!confirm(`Remove tag "${tagToDelete}"?`)) return;
+            project.customTags = project.customTags.filter(tag => tag !== tagToDelete);
+            try { await supabaseClient.from('projects').update({ custom_tags: project.customTags }).eq('id', project.id); calculateWordingTags(); } catch (err) { console.error(err); }
+        }
+
+        function calculateWordingTags() {
+            const project = projects.find(p => p.id === currentActiveProjectId);
+            if (!project) return;
+            if (!project.customTags) { project.customTags = ['[sso]', '[database]', '[payment]', '[maintenance]', '[reports]']; }
+            const tagCounts = {}; project.customTags.forEach(tag => { tagCounts[tag] = 0; });
+            project.pages.forEach(page => {
+                const tempDiv = document.createElement('div'); tempDiv.innerHTML = page.content || '';
+                const cleanText = tempDiv.innerText.toLowerCase();
+                Object.keys(tagCounts).forEach(tag => {
+                    const cleanTag = tag.replace('[', '').replace(']', '');
+                    const regex = new RegExp('\\[' + cleanTag + '\\]', 'g');
+                    const matches = cleanText.match(regex); if (matches) { tagCounts[tag] += matches.length; }
+                });
+            });
+            tagStatList.innerHTML = '';
+            Object.entries(tagCounts).forEach(([tag, count]) => {
+                tagStatList.insertAdjacentHTML('beforeend', `<div class="stat-tag-row"><span class="tag-pill">${tag}</span><div style="display:flex; align-items:center; gap:8px;"><span><strong>${count}</strong> used</span>${permissions.canManageTags ? `<button class="delete-tag-btn" onclick="deleteCustomTag('${tag}')">✕</button>` : ''}</div></div>`);
+            });
+        }
+
+        function triggerDocImport() { document.getElementById('docFileInput').click(); }
+        function handleDocImport(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const originalName = file.name.replace(/\.[^/.]+$/, ""); const reader = new FileReader();
+            reader.onload = function(loadEvent) {
+                const arrayBuffer = loadEvent.target.result;
+                mammoth.convertToHtml({ arrayBuffer: arrayBuffer }).then(async function(result) {
+                    const project = projects.find(p => p.id === currentActiveProjectId);
+                    project.pages.push({ title: originalName, content: result.value, history: [{ version: "v1.0", author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), action: `Imported via Document Upload` }] });
+                    try { await supabaseClient.from('projects').update({ pages: project.pages }).eq('id', project.id); currentActivePageIndex = project.pages.length - 1; renderWorkspaceSidebar(); renderWorkspaceContent(); calculateWordingTags(); } catch (err) { console.error(err); }
+                });
+            };
+            reader.readAsArrayBuffer(file); event.target.value = '';
+        }
+
+        function exportToDocx() {
+            const project = projects.find(p => p.id === currentActiveProjectId); const page = project.pages[currentActivePageIndex];
+            const rawHTML = document.getElementById('wikiContentToExport').innerHTML;
+            const fullHtmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:'Arial',sans-serif;line-height:1.6;}h1,h2,h3{color:#002f6c;}p{margin-bottom:12px;}</style></head><body><h2>${project.name} - ${page.title}</h2><hr/>${rawHTML}</body></html>`;
+            const converted = htmlDocx.asBlob(fullHtmlContent); const link = document.createElement('a');
+            link.href = URL.createObjectURL(converted); link.download = `${project.name}_${page.title}.docx`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        function exportToPdf() {
+            const project = projects.find(p => p.id === currentActiveProjectId); const page = project.pages[currentActivePageIndex];
+            const element = document.getElementById('wikiContentToExport');
+            const opt = { margin:1, filename:`${project.name}_${page.title}.pdf`, image:{ type:'jpeg', quality:0.98 }, html2canvas:{ scale:2 }, jsPDF:{ unit:'in', format:'letter', orientation:'portrait' } };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        // --- CORE NAVIGATION & ACTIONS INTERFACE CONTROLLER ---
+        function openProjectWorkspace(projectId) {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+            currentActiveProjectId = projectId;
+            currentActivePageIndex = 0;
+            
+            headerSubtitle.textContent = `/ ${project.name}`;
+            
+            dashboardView.classList.remove('active');
+            workspaceView.classList.add('active');
+            
+            document.getElementById('addPageBtn').style.display = permissions.canManagePages ? 'block' : 'none';
+            document.getElementById('importPageBtn').style.display = permissions.canManagePages ? 'block' : 'none';
+            document.getElementById('addTagBtn').style.display = permissions.canManageTags ? 'block' : 'none';
+
+            renderWorkspaceSidebar();
+            renderWorkspaceContent();
+            calculateWordingTags();
+        }
+
+        function showDashboardView() {
+            currentActiveProjectId = null;
+            headerSubtitle.textContent = "/ Projects Directory";
+            workspaceView.classList.remove('active');
+            dashboardView.classList.add('active');
+        }
+
+        async function deleteProject(projectId) {
+            if (!confirm("Are you sure you want to permanently delete this project and all its sub-pages? This action is irreversible.")) return;
+            try {
+                const { error } = await supabaseClient.from('projects').delete().eq('id', projectId);
+                if (error) throw error;
+                await fetchProjectsFromDB();
+            } catch (err) {
+                console.error("Error deleting project:", err);
+            }
+        }
+
+        // --- SUBMIT NEW PROJECT TO DATABASE ---
+        document.getElementById('projectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('projName').value.trim();
+            const desc = document.getElementById('projDesc').value.trim();
+            const objectives = document.getElementById('projObjectives').value.trim();
+            const requestor = document.getElementById('projRequestor').value.trim();
+            const status = document.getElementById('projStatus').value;
+            const dev = document.getElementById('projDev').value.trim();
+            const qa = document.getElementById('projQA').value.trim();
+            const ba = document.getElementById('projBA').value.trim();
+
+            const newProject = {
+                name: name,
+                desc: desc,
+                objectives: objectives,
+                requestor: requestor,
+                status: status,
+                dev_assignee: dev,
+                qa_assignee: qa,
+                ba_assignee: ba,
+                date_created: getCurrentFormattedDate(),
+                created_by: getAuthorName(),
+                custom_tags: ['[sso]', '[database]', '[payment]', '[maintenance]', '[reports]'],
+                pages: [
+                    {
+                        title: "Overview",
+                        content: `<h1>${name} Overview</h1><p>Welcome to the documentation workspace for ${name}. Use the navigation panel on the left to track wording tags, review audit logs, and manage QA testing scenarios.</p>`,
+                        history: [{ version: "v1.0", author: getAuthorName(), timestamp: getCurrentFormattedTimestamp(), action: "Initial project setup" }]
+                    }
+                ],
+                notes_history: [],
+                test_suite: [],
+                test_history: []
+            };
+
+            try {
+                const { error } = await supabaseClient.from('projects').insert([newProject]);
+                if (error) throw error;
+                
+                document.getElementById('projectModal').style.display = 'none';
+                document.getElementById('projectForm').reset();
+                await fetchProjectsFromDB();
+            } catch (err) {
+                console.error("Failed to insert new project:", err);
+                alert("Failed to save project to Supabase. Check database permissions.");
+            }
+        });
+
+        document.getElementById('openModalBtn').addEventListener('click', () => { document.getElementById('projectModal').style.display = 'flex'; });
+        document.getElementById('closeModalBtn').addEventListener('click', () => { document.getElementById('projectModal').style.display = 'none'; });
+        document.getElementById('dashboardThemeToggle').addEventListener('click', () => {
+            let theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('theme', theme);
+            
+            if (theme === 'dark') {
+                mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_white.png';
+            } else {
+                mainPortalLogo.src = 'docs/images/PLGIC_Icon Only_blue.png';
+            }
+        });
+
+        async function startup() {
+            await loadUserPermissions();
+            document.getElementById('openModalBtn').style.display = permissions.canCreateProjects ? 'block' : 'none';
+            await fetchProjectsFromDB();
+        }
+        startup();
+    </script>
 </body>
 </html>
